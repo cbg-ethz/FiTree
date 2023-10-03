@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "fitree"
+version = "0.1.0"
+description = ""
+authors = ["Computational Biology Group"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.9, <3.13"
+numpy = "^1.26.0"
+anytree = "^2.9.0"
+mpmath = "^1.3.0"
+pymc = "^5.8.2"
+
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.0.291"
+black = "^23.9.1"
+pytest = "^7.4.2"
+snakefmt = "^0.8.4"
+pyright = "^1.1.329"
+pre-commit = "^3.4.0"
+mkdocs = "^1.5.3"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
