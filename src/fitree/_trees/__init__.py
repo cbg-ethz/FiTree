@@ -3,6 +3,4 @@
 
 from ._subclone import Subclone
 
-__all__ = [
-	"Subclone"
-]
+__all__ = ["Subclone"]
