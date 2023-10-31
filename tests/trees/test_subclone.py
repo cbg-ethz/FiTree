@@ -37,46 +37,46 @@ def test_growth_params():
     F[4, 5] = 0.3
     common_beta = 1
 
-    root.get_growth_params(mu_vec, F, common_beta)
-    assert root.nu == 0
-    assert root.alpha == common_beta
-    assert root.beta == common_beta
-    assert root.lam == 0
-    assert root.delta == 0
-    assert root.r == 1
-    assert root.rho == 0
-    assert root.phi == root.alpha
-    assert root.gamma == 0
+    gpar = root.get_growth_params(mu_vec, F, common_beta, True)
+    assert gpar["nu"] == 0
+    assert gpar["alpha"] == 1
+    assert gpar["beta"] == 1
+    assert gpar["lambda"] == 0
+    assert gpar["delta"] == 0
+    assert gpar["r"] == 1
+    assert gpar["rho"] == 0
+    assert gpar["phi"] == 1
+    assert gpar["gamma"] == 0
 
-    v1.get_growth_params(mu_vec, F, common_beta)
-    assert v1.nu == 0.3
-    assert v1.alpha == 1.2
-    assert v1.beta == common_beta
-    assert v1.lam == v1.alpha - v1.beta
-    assert v1.delta == v1.lam
-    assert v1.r == 1
-    assert v1.rho == v1.nu / v1.alpha
-    assert v1.phi == v1.alpha / v1.lam
-    assert v1.gamma == 0
+    gpar = v1.get_growth_params(mu_vec, F, common_beta, True)
+    assert gpar["nu"] == 0.3
+    assert gpar["alpha"] == 1.2
+    assert gpar["beta"] == 1
+    assert gpar["lambda"] == 1.2 - 1
+    assert gpar["delta"] == gpar["lambda"]
+    assert gpar["r"] == 1
+    assert gpar["rho"] == 0.25
+    assert gpar["phi"] == 1.2 / gpar["lambda"]
+    assert gpar["gamma"] == 0
 
-    v2.get_growth_params(mu_vec, F, common_beta)
-    assert v2.nu == 0.4
-    assert v2.alpha == 1
-    assert v2.beta == common_beta
-    assert v2.lam == v2.alpha - v2.beta
-    assert v2.delta == root.lam
-    assert v2.r == 2
-    assert v2.rho == v2.nu / v2.alpha
-    assert v2.phi == v2.alpha
-    assert v2.gamma == 0
+    gpar = v2.get_growth_params(mu_vec, F, common_beta, True)
+    assert gpar["nu"] == 0.4
+    assert gpar["alpha"] == 1
+    assert gpar["beta"] == 1
+    assert gpar["lambda"] == 0
+    assert gpar["delta"] == 0
+    assert gpar["r"] == 2
+    assert gpar["rho"] == 0.4
+    assert gpar["phi"] == 1
+    assert gpar["gamma"] == 0
 
-    v3.get_growth_params(mu_vec, F, common_beta)
-    assert v3.nu == 0.5 * 0.6
-    assert v3.alpha == 1.2 * 0.5 * 0.3
-    assert v3.beta == common_beta
-    assert v3.lam == v3.alpha - v3.beta
-    assert v3.delta == v1.lam
-    assert v3.r == 1
-    assert v3.rho == v3.nu / v3.alpha
-    assert v3.phi == -v3.beta / v3.lam
-    assert v3.gamma == v1.delta / v3.delta
+    gpar = v3.get_growth_params(mu_vec, F, common_beta, True)
+    assert gpar["nu"] == 0.5 * 0.6
+    assert gpar["alpha"] == 1.2 * 0.5 * 0.3
+    assert gpar["beta"] == common_beta
+    assert gpar["lambda"] == 1.2 * 0.5 * 0.3 - 1
+    assert gpar["delta"] == 1.2 - 1
+    assert gpar["r"] == 1
+    assert gpar["rho"] == 5 / 3
+    assert gpar["phi"] == 1 / 0.82
+    assert gpar["gamma"] == 1

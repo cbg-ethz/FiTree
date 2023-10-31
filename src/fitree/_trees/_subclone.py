@@ -87,77 +87,85 @@ class Subclone(SubcloneBase, NodeMixin):
         if self.is_root:
             # mutations in the root are considered as germline mutations
             # and thus do not change the mutation rate and the fitness
-            self.nu = 0
-            self.alpha = common_beta
-            self.beta = common_beta
-            self.lam = 0
-            self.delta = 0
-            self.r = 1
-            self.rho = 0
-            self.phi = self.alpha
-            self.gamma = 0
+            growth_params = {
+                "nu": 0,
+                "alpha": common_beta,
+                "beta": common_beta,
+                "lambda": 0,
+                "delta": 0,
+                "r": 1,
+                "rho": 0,
+                "phi": common_beta,
+                "gamma": 0
+            }
 
         else:
             gen_list = list(self.genotype)
+            delta_pa = self.parent.growth_params["delta"]
+            r_pa = self.parent.growth_params["r"]
 
             # mutation rate
-            self.nu = np.prod(mu_vec[list(self.genotype - self.parent.genotype)])
+            nu = np.prod(mu_vec[list(self.genotype - self.parent.genotype)])
 
             # birth rate
             coef = 1
             for i in range(len(gen_list)):
                 for j in range(i, len(gen_list)):
                     coef *= F[gen_list[i], gen_list[j]]
-            self.alpha = common_beta * coef
+            alpha = common_beta * coef
 
             # death rate
-            self.beta = common_beta
+            beta = common_beta
 
             # net growth rate
-            self.lam = self.alpha - self.beta
+            lam = alpha - beta
 
             # running-max net growth rate
-            self.delta = max(self.parent.delta, self.lam)  # pyright: ignore
+            delta = np.max([delta_pa, lam])  # pyright: ignore
 
             # number of times achieving the running-max net growth rate
-            if self.lam > self.parent.delta:
-                self.r = 1
-            elif self.lam == self.parent.delta:
-                self.r = self.parent.r + 1
+            if lam > delta_pa:
+                r = 1
+            elif lam == delta_pa:
+                r = r_pa + 1
             else:
-                self.r = self.parent.r
+                r = r_pa
 
             # subclonal population size distribution shape
-            self.rho = self.nu / self.alpha
+            rho = nu / alpha
 
             # subclonal population size distribution scale
-            if self.lam < 0:
-                self.phi = -self.beta / self.lam
-            elif self.lam == 0:
-                self.phi = self.alpha
+            if lam < 0:
+                phi = -beta / lam
+            elif lam == 0:
+                phi = alpha
             else:
-                self.phi = self.alpha / self.lam
+                phi = alpha / lam
 
             # growth ratio
-            if self.delta == 0:
-                self.gamma = 0
+            if delta == 0:
+                gamma = 0
             else:
-                self.gamma = self.parent.delta / self.delta
+                gamma = delta_pa / delta
 
-        if return_dict:
             growth_params = {
-                "nu": self.nu,
-                "alpha": self.alpha,
-                "beta": self.beta,
-                "lambda": self.lam,
-                "delta": self.delta,
-                "r": self.r,
-                "rho": self.rho,
-                "phi": self.phi,
-                "gamma": self.gamma,
+                "nu": nu,
+                "alpha": alpha,
+                "beta": beta,
+                "lambda": lam,
+                "delta": delta,
+                "r": r,
+                "rho": rho,
+                "phi": phi,
+                "gamma": gamma,
             }
 
+        self.growth_params = growth_params
+
+        if return_dict:
+            
             return growth_params
+        
 
     def get_C_tilde(self, t: float) -> float | np.ndarray:
         """Get the time-adjusted number of cells based on Theorem 1
@@ -170,4 +178,6 @@ class Subclone(SubcloneBase, NodeMixin):
         if self.is_root:
             return self.cell_number
         else:
-            return t ** (-(self.r - 1)) * np.exp(-self.delta * t) * self.cell_number
+            return np.power(t, -(self.growth_params["r"] - 1)) * \
+                np.exp(-self.growth_params["delta"] * t) * \
+                    self.cell_number
