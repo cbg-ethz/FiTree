@@ -22,6 +22,7 @@ snakefmt = "^0.8.4"
 pyright = "^1.1.329"
 pre-commit = "^3.4.0"
 mkdocs = "^1.5.3"
+mkdocs-material = "^9.4.7"
 
 [build-system]
 requires = ["poetry-core"]
