@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Iterable
+from typing import Iterable, Any
 from anytree import NodeMixin
 
 import numpy as np
@@ -59,7 +59,7 @@ class Subclone(SubcloneBase, NodeMixin):
         F: np.ndarray,
         common_beta: float,
         return_dict: bool = False,
-    ) -> dict | None:
+    ) -> dict | Any:
         """get growth parameters for the subclone
 
         Args:
@@ -96,7 +96,7 @@ class Subclone(SubcloneBase, NodeMixin):
                 "r": 1,
                 "rho": 0,
                 "phi": common_beta,
-                "gamma": 0
+                "gamma": 0,
             }
 
         else:
@@ -163,9 +163,7 @@ class Subclone(SubcloneBase, NodeMixin):
         self.growth_params = growth_params
 
         if return_dict:
-            
             return growth_params
-        
 
     def get_C_tilde(self, t: float) -> float | np.ndarray:
         """Get the time-adjusted number of cells based on Theorem 1
@@ -178,6 +176,8 @@ class Subclone(SubcloneBase, NodeMixin):
         if self.is_root:
             return self.cell_number
         else:
-            return np.power(t, -(self.growth_params["r"] - 1)) * \
-                np.exp(-self.growth_params["delta"] * t) * \
-                    self.cell_number
+            return (
+                np.power(t, -(self.growth_params["r"] - 1))
+                * np.exp(-self.growth_params["delta"] * t)
+                * self.cell_number
+            )
