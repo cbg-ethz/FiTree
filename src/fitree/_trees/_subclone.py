@@ -15,7 +15,7 @@ class Subclone(SubcloneBase, NodeMixin):
     def __init__(
         self,
         node_id: int,
-        mutations: Iterable[int],
+        mutation_ids: Iterable[int],
         cell_number: int,
         parent: Subclone | None = None,
         children: Iterable[Subclone] | None = None,
@@ -24,7 +24,7 @@ class Subclone(SubcloneBase, NodeMixin):
 
         Args:
             node_id (int): node id
-            mutations (Iterable[int]): mutations in the subclone
+            mutation_ids (Iterable[int]): mutation_ids in the subclone
             cell_number (int): number of cells attached
             parent (Subclone, optional): parent subclone. Defaults to None.
             children (Iterable[Subclone], optional): children subclones.
@@ -33,7 +33,7 @@ class Subclone(SubcloneBase, NodeMixin):
 
         super().__init__()
         self.node_id = node_id
-        self.mutations = mutations
+        self.mutation_ids = mutation_ids
         self.cell_number = cell_number
         self.parent = parent
         if children:
@@ -44,11 +44,11 @@ class Subclone(SubcloneBase, NodeMixin):
     def get_genotype(self) -> set:
         genotype = set()
         for node in self.path:
-            genotype.update(node.mutations)  # pyright: ignore
+            genotype.update(node.mutation_ids)  # pyright: ignore
         return genotype
 
-    def update_mutations(self, mutations: Iterable[int]) -> None:
-        self.mutations = mutations
+    def update_mutation_ids(self, mutation_ids: Iterable[int]) -> None:
+        self.mutation_ids = mutation_ids
         self.genotype = self.get_genotype()
         for child in self.children:
             child.genotype = child.get_genotype()
@@ -85,6 +85,8 @@ class Subclone(SubcloneBase, NodeMixin):
         """
 
         if self.is_root:
+            # mutations in the root are considered as germline mutations
+            # and thus do not change the mutation rate and the fitness
             self.nu = 0
             self.alpha = common_beta
             self.beta = common_beta
