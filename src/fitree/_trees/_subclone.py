@@ -165,7 +165,7 @@ class Subclone(SubcloneBase, NodeMixin):
         if return_dict:
             return growth_params
 
-    def get_C_tilde(self, t: float) -> float | np.ndarray:
+    def get_C_tilde(self, t: float | np.ndarray) -> float | np.ndarray:
         """Get the time-adjusted number of cells based on Theorem 1
         Formula: t^(-(r - 1)) * exp(-delta * t) * C = C_tilde
 
