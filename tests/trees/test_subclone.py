@@ -80,3 +80,19 @@ def test_growth_params():
     assert gpar["rho"] == 5 / 3
     assert gpar["phi"] == 1 / 0.82
     assert gpar["gamma"] == 1
+
+
+def test_mrca():
+	root = Subclone(node_id=0, mutation_ids=[0, 1], cell_number=100)
+	v1 = Subclone(node_id=1, mutation_ids=[2], cell_number=50, parent=root)
+	v2 = Subclone(node_id=2, mutation_ids=[3], cell_number=50, parent=root)
+	v3 = Subclone(node_id=3, mutation_ids=[2, 5], cell_number=25, parent=v1)
+	v4 = Subclone(node_id=4, mutation_ids=[4], cell_number=25, parent=v2)
+	v5 = Subclone(node_id=5, mutation_ids=[5], cell_number=25, parent=v2)
+
+	assert root.get_mrca() == root
+	assert v1.get_mrca() == v1
+	assert v2.get_mrca() == v2
+	assert v3.get_mrca() == v1
+	assert v4.get_mrca() == v2
+	assert v5.get_mrca() == v2

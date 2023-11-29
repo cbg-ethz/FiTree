@@ -181,3 +181,21 @@ class Subclone(SubcloneBase, NodeMixin):
                 * np.exp(-self.growth_params["delta"] * t)
                 * self.cell_number
             )
+
+    def get_mrca(self) -> Subclone | Any:
+        """Get the most recent common ancestor of the subclone
+
+        Returns:
+            Subclone: most recent common ancestor
+        """
+
+        if self.is_root:
+            return self
+
+        # recursively find the ancestor of the subclone
+        # which has the root as its parent
+        mrca = self
+        while not mrca.parent.is_root:
+            mrca = mrca.parent
+
+        return mrca
