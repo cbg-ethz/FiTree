@@ -8,19 +8,25 @@ repos:
         args: ["-f", "requirements.txt", "-o", "requirements.txt"]
       - id: poetry-export
         args: ["-f", "requirements.txt", "-o", "requirements-dev.txt", "--with", "dev"]
+
   - repo: https://github.com/psf/black
     rev: 23.9.1
     hooks:
       - id: black
+        exclude: 'tests/|test_.*\.py'
+
   - repo: https://github.com/charliermarsh/ruff-pre-commit
     rev: 'v0.0.291'
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
+        exclude: 'tests/|test_.*\.py'
+
   - repo: https://github.com/snakemake/snakefmt
     rev: 'v0.8.4'
     hooks:
       - id: snakefmt
+
   - repo: local
     hooks:
       - id: pyright
@@ -29,3 +35,4 @@ repos:
         language: node
         pass_filenames: true
         types: [python]
+        exclude: 'tests/|test_.*\.py'
