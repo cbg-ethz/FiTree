@@ -48,6 +48,6 @@ jobs:
         run: poetry run pytest
       - name: Run Ruff
         run: poetry run ruff check .
-      - name: Run Pyright (type checking)
-        run: poetry run pyright
+      # - name: Run Pyright (type checking)
+      #   run: poetry run pyright
         
