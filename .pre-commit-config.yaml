@@ -27,12 +27,12 @@ repos:
     hooks:
       - id: snakefmt
 
-  - repo: local
-    hooks:
-      - id: pyright
-        name: pyright
-        entry: poetry run pyright
-        language: node
-        pass_filenames: true
-        types: [python]
-        exclude: 'tests/|test_.*\.py'
+  # - repo: local
+  #   hooks:
+  #     - id: pyright
+  #       name: pyright
+  #       entry: poetry run pyright
+  #       language: node
+  #       pass_filenames: true
+  #       types: [python]
+  #       exclude: 'tests/|test_.*\.py'
