@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Iterable, Any
-from anytree import NodeMixin
+from anytree import NodeMixin, RenderTree
 
 import numpy as np
 
@@ -40,6 +40,19 @@ class Subclone(SubcloneBase, NodeMixin):
             self.children = children
 
         self.genotype = self.get_genotype()
+
+        if self.is_root:
+            self.growth_params = {
+                "nu": 0,
+                "alpha": 0,
+                "beta": 0,
+                "lambda": 0,
+                "delta": 0,
+                "r": 1,
+                "rho": 0,
+                "phi": 0,
+                "gamma": 0,
+            }
 
     def get_genotype(self) -> set:
         genotype = set()
@@ -199,3 +212,13 @@ class Subclone(SubcloneBase, NodeMixin):
             mrca = mrca.parent
 
         return mrca
+
+    def __str__(self) -> str:
+        root = self.root
+        return RenderTree(root).by_attr(
+            lambda node: f"(Node ID: {node.node_id}) \n"
+            + f" - Mutations: {node.mutation_ids} \n"
+            + f" - Cell number: {node.cell_number:.4E} \n"
+            + f" - Mutation rate: {node.growth_params['nu']:.4E} \n"
+            + f" - Net growth rate: {node.growth_params['lambda']:.4E}"
+        )
