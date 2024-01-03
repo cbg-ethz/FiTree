@@ -60,9 +60,11 @@ def _ccdf_sampling(
         raise ValueError("The tree given is not a root node!")
 
     log_ccdf = 0
-    # loop through all nodes in the tree
+    # loop through all nodes except the root in the tree
     # add up -q_tilde * C_tilde for each node
-    for node in PreOrderIter(tree):
+    tree_iter = PreOrderIter(tree)
+    next(tree_iter)
+    for node in tree_iter:
         log_ccdf -= _q_tilde(node, t, C_sampling) * node.get_C_tilde(t)
 
     return 1 - mp.exp(log_ccdf)
