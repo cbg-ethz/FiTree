@@ -7,7 +7,9 @@ from fitree._trees import Subclone
 
 def _truncate_tree(tree: Subclone, C_min: int | float | np.ndarray = 1e3) -> Subclone:
     """
-    Recursively truncate the non-detected leaves.
+    Recursively truncate the non-detected leaves,
+    assign zeros to non-detected internal nodes,
+    and re-assign node ids.
 
     Parameters
     ----------
@@ -17,6 +19,7 @@ def _truncate_tree(tree: Subclone, C_min: int | float | np.ndarray = 1e3) -> Sub
             The minimum detectable number of cells. Defaults to 1e3.
     """
 
+    # recursively truncate the non-detected leaves
     check = False
     while not check:
         check = True
@@ -25,6 +28,11 @@ def _truncate_tree(tree: Subclone, C_min: int | float | np.ndarray = 1e3) -> Sub
                 node.parent = None
                 del node
                 check = False
+
+    # assign zeros to non-detected internal nodes
+    for node in PreOrderIter(tree):
+        if node.cell_number < C_min:
+            node.cell_number = 0
 
     # re-assign node ids
     node_id_counter = 0
