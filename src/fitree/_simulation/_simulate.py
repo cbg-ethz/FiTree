@@ -133,9 +133,53 @@ def _generate_one_tree(
     root = _truncate_tree(root, C_min=C_min)
 
     if return_time:
-        return (root, t)
+        return root, t
 
     return root
+
+
+def _generate_valid_tree(
+    rng: np.random.Generator,
+    n_mutations: int,
+    mu_vec: np.ndarray,
+    F: np.ndarray,
+    common_beta: float = 0.8,
+    C_0: int | float | np.ndarray = 1e5,
+    C_min: int | float | np.ndarray = 1e3,
+    C_sampling: int | float | np.ndarray = 1e9,
+    tau: float = 1e-3,
+    T_max: float = 100,
+    rule: str = "parallel",
+    k_repeat: int = 0,
+    k_multiple: int = 1,
+    return_time: bool = False,
+) -> Union[Subclone, Tuple[Subclone, float]]:
+    # Generate a tree and ensure that the sampling event occurs
+    # before the maximum time T_max
+    while True:
+        tree, t = _generate_one_tree(
+            rng=rng,
+            n_mutations=n_mutations,
+            mu_vec=mu_vec,
+            F=F,
+            common_beta=common_beta,
+            C_0=C_0,
+            C_min=C_min,
+            C_sampling=C_sampling,
+            tau=tau,
+            T_max=T_max,
+            rule=rule,
+            k_repeat=k_repeat,
+            k_multiple=k_multiple,
+            return_time=True,
+        )
+        if t < T_max:
+            break
+
+    if return_time:
+        return tree, t
+    else:
+        return tree
 
 
 def generate_trees(
@@ -206,7 +250,7 @@ def generate_trees(
     trees = []
     for i in range(N_trees):
         trees.append(
-            _generate_one_tree(
+            _generate_valid_tree(
                 rng=rng,
                 n_mutations=n_mutations,
                 mu_vec=mu_vec,
