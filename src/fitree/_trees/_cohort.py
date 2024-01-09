@@ -52,7 +52,18 @@ class TumorTreeCohort:
     def _check_trees(self) -> None:
         # check if the mutations in the trees all have labels
 
-        raise NotImplementedError
+        mutation_ids_in_trees = set()
+        for tree in self.trees:
+            mutation_ids_in_trees.update(tree.get_mutation_ids())
+
+        # check index error
+        for mutation_id in mutation_ids_in_trees:
+            try:
+                self.mutation_labels[mutation_id]
+            except IndexError:
+                raise IndexError(
+                    f"mutation_labels does not have label for mutation {mutation_id}"
+                )
 
     def add_tree(
         self,
