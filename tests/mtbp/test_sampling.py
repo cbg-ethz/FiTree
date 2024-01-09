@@ -2,7 +2,7 @@ from mpmath import *
 mp.dps = 100
 mp.pretty = True
 
-from fitree._trees import Subclone
+from fitree._trees import Subclone, TumorTree
 from fitree._mtbp import _mcdf_sampling, _q_tilde, _g_tilde, _h
 
 tol = 1e-10
@@ -209,6 +209,8 @@ def test_mcdf_sampling_1():
 		"gamma": gamma_3
 	}
 
+	tree = TumorTree(patient_id=0, tree_id=0, root=root)
+
 	def F_sampling(t):
 		q_tilde_3 = (exp(delta_3 * t) - 1) / (delta_3 * C_sampling)
 		g_tilde_3 = q_tilde_3
@@ -225,19 +227,19 @@ def test_mcdf_sampling_1():
 		return 1 - power(1 + phi_1 * g_tilde_1, -rho_1)
 
 	assert almosteq(
-		_mcdf_sampling(root, t, C_sampling, C_0), 
+		_mcdf_sampling(tree, t, C_sampling, C_0), 
 		F_sampling(t),
 		tol
 	)
 
 	assert almosteq(
-		_mcdf_sampling(root, t, C_sampling, C_0), 
+		_mcdf_sampling(tree, t, C_sampling, C_0), 
 		1 - power(1 + phi_1 * _g_tilde(v1, t, C_sampling), -rho_1 * C_0),
 		tol
 	)
 
 	assert almosteq(
-		_mcdf_sampling(root, t, C_sampling, C_0), 
+		_mcdf_sampling(tree, t, C_sampling, C_0), 
 		1 - power(
 			1 + phi_1 * (
 				_q_tilde(v1, t, C_sampling) + \
@@ -326,6 +328,8 @@ def test_mcdf_sampling_2():
 		"gamma": gamma_3
 	}
 
+	tree = TumorTree(patient_id=0, tree_id=0, root=root)
+
 	def F_sampling(t):	
 
 		q_tilde_3 = (exp(delta_3 * t) - 1) / delta_3 / C_sampling
@@ -345,7 +349,7 @@ def test_mcdf_sampling_2():
 
 
 	assert almosteq(
-		_mcdf_sampling(root, t, C_sampling, C_0), 
+		_mcdf_sampling(tree, t, C_sampling, C_0), 
 		F_sampling(t),
 		tol
 	)
@@ -428,6 +432,8 @@ def test_mcdf_sampling_3():
 		"gamma": gamma_3
 	}
 
+	tree = TumorTree(patient_id=0, tree_id=0, root=root)
+
 	def F_sampling(t):	
 
 		epsilon = 0.01
@@ -453,7 +459,7 @@ def test_mcdf_sampling_3():
 		)
 
 	assert almosteq(
-		_mcdf_sampling(root, t, C_sampling, C_0), 
+		_mcdf_sampling(tree, t, C_sampling, C_0), 
 		F_sampling(t),
 		tol
 	)
