@@ -22,6 +22,10 @@ class TumorTree:
                 sampling_time (float, optional): sampling time of the tree.
                         Defaults to None.
         """
+
+        if not tree.is_root:
+            raise ValueError("The tree given is not a root node!")
+
         self.patient_id = patient_id
         self.tree_id = tree_id
         self.tree = tree
