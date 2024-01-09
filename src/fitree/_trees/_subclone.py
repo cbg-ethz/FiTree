@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Iterable, Any
-from anytree import NodeMixin, RenderTree
+from anytree import NodeMixin
 
 import numpy as np
 
@@ -212,13 +212,3 @@ class Subclone(SubcloneBase, NodeMixin):
             mrca = mrca.parent
 
         return mrca
-
-    def __str__(self) -> str:
-        root = self.root
-        return RenderTree(root).by_attr(
-            lambda node: f"(Node ID: {node.node_id}) \n"
-            + f" - Mutations: {node.mutation_ids} \n"
-            + f" - Cell number: {node.cell_number:.4E} \n"
-            + f" - Mutation rate: {node.growth_params['nu']:.4E} \n"
-            + f" - Net growth rate: {node.growth_params['lambda']:.4E}"
-        )

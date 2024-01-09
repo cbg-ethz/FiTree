@@ -1,4 +1,4 @@
-from anytree import PreOrderIter
+from anytree import PreOrderIter, RenderTree
 
 from ._subclone import Subclone
 
@@ -37,3 +37,12 @@ class TumorTree:
         for node in PreOrderIter(self.root):
             all_mutation_ids.update(node.mutation_ids)
         return all_mutation_ids
+
+    def __str__(self) -> str:
+        return RenderTree(self.root).by_attr(
+            lambda node: f"(Node ID: {node.node_id}) \n"
+            + f" - Mutations: {node.mutation_ids} \n"
+            + f" - Cell number: {node.cell_number:.4E} \n"
+            + f" - Mutation rate: {node.growth_params['nu']:.4E} \n"
+            + f" - Net growth rate: {node.growth_params['lambda']:.4E}"
+        )
