@@ -8,11 +8,11 @@ def test_tumor_1():
 	v1 = Subclone(node_id=1, mutation_ids=[2], cell_number=50, parent=root)
 	v2 = Subclone(node_id=2, mutation_ids=[3], cell_number=50, parent=v1)
 
-	tree = TumorTree(patient_id=0, tree_id=0, tree=root)
+	tree = TumorTree(patient_id=0, tree_id=0, root=root)
 
 	assert tree.patient_id == 0
 	assert tree.tree_id == 0
-	assert tree.tree == root
+	assert tree.root == root
 	assert tree.weight == 1.0
 	assert tree.sampling_time is None
 
@@ -24,11 +24,11 @@ def test_tumor_2():
 	v1 = Subclone(node_id=1, mutation_ids=[2], cell_number=50, parent=root)
 	v2 = Subclone(node_id=2, mutation_ids=[3], cell_number=50, parent=v1)
 
-	tree = TumorTree(patient_id=0, tree_id=0, tree=root, weight=0.5, sampling_time=0.5)
+	tree = TumorTree(patient_id=0, tree_id=0, root=root, weight=0.5, sampling_time=0.5)
 
 	assert tree.patient_id == 0
 	assert tree.tree_id == 0
-	assert tree.tree == root
+	assert tree.root == root
 	assert tree.weight == 0.5
 	assert tree.sampling_time == 0.5
 
@@ -41,6 +41,6 @@ def test_tumor_3():
 	v2 = Subclone(node_id=2, mutation_ids=[3], cell_number=50, parent=v1)
 
 	with pytest.raises(ValueError):
-		tree = TumorTree(patient_id=0, tree_id=0, tree=v1)
-		tree = TumorTree(patient_id=0, tree_id=0, tree=v2)
+		tree = TumorTree(patient_id=0, tree_id=0, root=v1)
+		tree = TumorTree(patient_id=0, tree_id=0, root=v2)
 
