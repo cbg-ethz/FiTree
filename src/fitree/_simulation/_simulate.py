@@ -1,9 +1,9 @@
 import numpy as np
 
 from anytree import PreOrderIter
-from typing import Union, Tuple
+from typing import Tuple
 
-from fitree._trees import Subclone
+from fitree._trees import Subclone, TumorTree, TumorTreeCohort
 from ._utils import _truncate_tree, _expand_tree
 
 
@@ -21,8 +21,7 @@ def _generate_one_tree(
     rule: str = "parallel",
     k_repeat: int = 0,
     k_multiple: int = 1,
-    return_time: bool = False,
-) -> Union[Subclone, Tuple[Subclone, float]]:
+) -> Tuple[Subclone, float]:
     """
     Generate one tree with the given number of mutations and the given
     mutation rate vector and fitness matrix.
@@ -58,8 +57,6 @@ def _generate_one_tree(
             The step size of the tau-leaping algorithm. Defaults to 1e-3.
     T_max : float, optional
             The maximum time to generate the tree. Defaults to 100.
-    return_time : bool, optional
-            Whether to return the time. Defaults to False.
 
     Returns
     -------
@@ -132,10 +129,7 @@ def _generate_one_tree(
     # Recursively truncate the non-detected leaves
     root = _truncate_tree(root, C_min=C_min)
 
-    if return_time:
-        return root, t
-
-    return root
+    return root, t
 
 
 def _generate_valid_tree(
@@ -152,12 +146,11 @@ def _generate_valid_tree(
     rule: str = "parallel",
     k_repeat: int = 0,
     k_multiple: int = 1,
-    return_time: bool = False,
-) -> Union[Subclone, Tuple[Subclone, float]]:
+) -> Tuple[Subclone, float]:
     # Generate a tree and ensure that the sampling event occurs
     # before the maximum time T_max
     while True:
-        tree, t = _generate_one_tree(
+        root, t = _generate_one_tree(
             rng=rng,
             n_mutations=n_mutations,
             mu_vec=mu_vec,
@@ -171,15 +164,11 @@ def _generate_valid_tree(
             rule=rule,
             k_repeat=k_repeat,
             k_multiple=k_multiple,
-            return_time=True,
         )
         if t < T_max:
             break
 
-    if return_time:
-        return tree, t
-    else:
-        return tree
+    return root, t
 
 
 def generate_trees(
@@ -198,7 +187,7 @@ def generate_trees(
     k_repeat: int = 0,
     k_multiple: int = 1,
     return_time: bool = False,
-) -> Union[list[Subclone], list[Tuple[Subclone, float]]]:
+) -> TumorTreeCohort:
     """
     Generate a list of trees with the given number of mutations and the given
     mutation rate vector and fitness matrix.
@@ -237,7 +226,7 @@ def generate_trees(
     T_max : float, optional
             The maximum time to generate the tree. Defaults to 100.
     return_time : bool, optional
-            Whether to return the time. Defaults to False.
+            Whether to return the sampling time. Defaults to False.
 
     Returns
     -------
@@ -249,23 +238,38 @@ def generate_trees(
 
     trees = []
     for i in range(N_trees):
-        trees.append(
-            _generate_valid_tree(
-                rng=rng,
-                n_mutations=n_mutations,
-                mu_vec=mu_vec,
-                F=F,
-                common_beta=common_beta,
-                C_0=C_0,
-                C_min=C_min,
-                C_sampling=C_sampling,
-                tau=tau,
-                T_max=T_max,
-                rule=rule,
-                k_repeat=k_repeat,
-                k_multiple=k_multiple,
-                return_time=return_time,
-            )
+        root, t = _generate_valid_tree(
+            rng=rng,
+            n_mutations=n_mutations,
+            mu_vec=mu_vec,
+            F=F,
+            common_beta=common_beta,
+            C_0=C_0,
+            C_min=C_min,
+            C_sampling=C_sampling,
+            tau=tau,
+            T_max=T_max,
+            rule=rule,
+            k_repeat=k_repeat,
+            k_multiple=k_multiple,
         )
 
-    return trees
+        if return_time:
+            tree = TumorTree(patient_id=i, tree_id=i, root=root, sampling_time=t)
+        else:
+            tree = TumorTree(patient_id=i, tree_id=i, root=root)
+
+        trees.append(tree)
+
+    cohort = TumorTreeCohort(
+        name="simulated",
+        trees=trees,
+        n_mutations=n_mutations,
+        N_trees=N_trees,
+        N_patients=N_trees,
+        mutation_labels={i: "M" + str(i) for i in range(n_mutations)},
+        tree_labels={i: "T" + str(i) for i in range(N_trees)},
+        patient_labels={i: "P" + str(i) for i in range(N_trees)},
+    )
+
+    return cohort
