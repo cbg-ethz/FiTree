@@ -4,8 +4,8 @@ import jax.scipy.special as jss
 
 
 @jax.jit
-def polylog_one(s, z, eps=jnp.finfo(float).eps):
-    return -jnp.log(1 - z + eps)
+def complex_log(z):
+    return jnp.log(jnp.abs(z)) + 1j * jnp.angle(z)
 
 
 @jax.jit
@@ -69,29 +69,37 @@ def bernoulli(n):
 @jax.jit
 def bernpoly(n, z):
     def small_n_case(n, z):
-        return jnp.select(
-            [n == 0, n == 1, n == 2, n == 3],
-            [z**0, z - 0.5, (6 * z * (z - 1) + 1) / 6, z * (z * (z - 1.5) + 0.5)],
+        res = (
+            jnp.select(
+                [n == 0, n == 1, n == 2, n == 3],
+                [z**0, z - 0.5, (6 * z * (z - 1) + 1) / 6, z * (z * (z - 1.5) + 0.5)],
+            )
+            + 0.0j
         )
+        return res
 
     def special_z_case(n, z):
-        bn = bernoulli(n)
-        return jnp.select(
-            [z == 0, z == 1, z == 0.5, jnp.isinf(z), jnp.isnan(z)],
-            [bn, bn, (jnp.power(2, 1 - n) - 1) * bn, z**n, z],
+        bn = bernoulli(n) + 0.0j
+        res = (
+            jnp.select(
+                [z == 0, z == 1, z == 0.5, jnp.isinf(z), jnp.isnan(z)],
+                [bn, bn, (jnp.power(2, 1 - n) - 1) * bn, z**n, z],
+            )
+            + 0.0j
         )
+        return res
 
     def check_special_cond(z):
         return (z == 0) | (z == 1) | (z == 0.5) | jnp.isinf(z) | jnp.isnan(z)
 
     def general_case(n, z):
         def term_1(n, z):
-            t = 1
+            t = 1.0 + 0.0j
             s = t
             r = 1 / z
             t = t * n * r
             s -= t / 2
-            k = 2
+            k = 2.0
 
             def body_fun(carry):
                 t, k, s = carry
@@ -107,9 +115,9 @@ def bernpoly(n, z):
             return s * z**n
 
         def term_2(n, z):
-            s = bernoulli(n)
-            t = 1
-            k = 1
+            s = bernoulli(n) + 0.0j
+            t = 1.0 + 0.0j
+            k = 1.0
 
             def body_fun(carry):
                 t, k, s = carry
@@ -141,7 +149,7 @@ def bernpoly(n, z):
 @jax.jit
 def polylog_continuation(n, z):
     twopij = 2j * jnp.pi
-    a = -jnp.power(twopij, n) / jss.gamma(n + 1) * bernpoly(n, jnp.log(z) / twopij)
+    a = -jnp.power(twopij, n) / jss.gamma(n + 1) * bernpoly(n, complex_log(z) / twopij)
 
     def check_cond_1(z):
         return jnp.isreal(z) & (z < 0)
@@ -153,12 +161,12 @@ def polylog_continuation(n, z):
 
     a = jax.lax.cond(
         check_cond_2(z),
-        lambda a: a - twopij * jnp.power(jnp.log(z), n - 1) / jss.gamma(n),
+        lambda a: a - twopij * jnp.power(complex_log(z), n - 1) / jss.gamma(n),
         lambda a: a,
         a,
     )
 
-    return jax.lax.cond(n < 0, lambda z: z * 0, lambda z: a, z)
+    return jax.lax.cond(n < 0, lambda z: z * 0.0 + 0.0j, lambda z: a, z)
 
 
 @jax.jit
@@ -210,17 +218,17 @@ def polylog_unitcircle(n, z, eps=jnp.finfo(float).eps):
         _, _, _, _, term = carry
         return (term == 0.0) | (jnp.abs(term) >= tol)
 
-    l = 0.0
-    logz = jnp.log(z)
-    logmz = 1.0
-    term = jnp.where(n != 1, riemann_zeta(n), 0.0)
+    l = 0.0 + 0.0j
+    logz = complex_log(z)
+    logmz = 1.0 + 0.0j
+    term = jnp.where(n != 1, riemann_zeta(n), 0.0) + 0.0j
 
     initial_carry = (l, logz, logmz, 0.0, term)
     l, _, _, _, _ = jax.lax.while_loop(cond_fun, body_fun, initial_carry)
     l += (
-        jnp.power(jnp.log(z), n - 1)
+        jnp.power(complex_log(z), n - 1)
         / jss.gamma(n)
-        * (harmonic(n - 1) - jnp.log(-jnp.log(z)))
+        * (harmonic(n - 1) - complex_log(-complex_log(z)))
     )
 
     return l
@@ -238,7 +246,7 @@ def polylog_jax(n, z):
                 riemann_zeta(n),
                 altzeta(n),
                 z / (1 - z),
-                -jnp.log(1 - z),
+                -complex_log(1 - z),
                 z / (1 - z) ** 2,
             ],
         )
