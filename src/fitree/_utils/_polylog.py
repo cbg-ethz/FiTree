@@ -30,4 +30,3 @@ def polylog_jax(n, z):
         return carry
 
     return jax.lax.fori_loop(0, max_k + 1, body_fun, 0.0) * (-2.0)
-
