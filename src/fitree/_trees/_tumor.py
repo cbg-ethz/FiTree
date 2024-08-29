@@ -44,5 +44,5 @@ class TumorTree:
             + f" - Mutations: {node.mutation_ids} \n"
             + f" - Cell number: {node.cell_number:.4E} \n"
             + f" - Mutation rate: {node.growth_params['nu']:.4E} \n"
-            + f" - Net growth rate: {node.growth_params['lambda']:.4E}"
+            + f" - Net growth rate: {node.growth_params['lam']:.4E}"
         )
