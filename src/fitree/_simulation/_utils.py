@@ -47,7 +47,7 @@ def _expand_tree(
     tree: Subclone,
     n_mutations: int,
     mu_vec: np.ndarray,
-    F: np.ndarray,
+    F_mat: np.ndarray,
     common_beta: float = 0.8,
     rule: str = "parallel",
     k_repeat: int = 0,
@@ -64,7 +64,7 @@ def _expand_tree(
             The number of mutations to be considered.
     mu_vec : np.ndarray
             The n-by-1 mutation rate vector.
-    F : np.ndarray
+    F_mat : np.ndarray
             The n-by-n fitness matrix.
     common_beta : float, optional
             The common death rate. Defaults to 0.8 (average 40 weeks).
@@ -99,7 +99,7 @@ def _expand_tree(
                         parent=node,
                     )
                     new_node.get_growth_params(
-                        mu_vec=mu_vec, F=F, common_beta=common_beta
+                        mu_vec=mu_vec, F_mat=F_mat, common_beta=common_beta
                     )
                     node_id_counter += 1
     else:
