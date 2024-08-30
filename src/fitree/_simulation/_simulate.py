@@ -11,7 +11,7 @@ def _generate_one_tree(
     rng: np.random.Generator,
     n_mutations: int,
     mu_vec: np.ndarray,
-    F: np.ndarray,
+    F_mat: np.ndarray,
     common_beta: float = 0.8,
     C_0: int | float | np.ndarray = 1e5,
     C_min: int | float | np.ndarray = 1e3,
@@ -34,7 +34,7 @@ def _generate_one_tree(
             The number of mutations to be considered.
     mu_vec : np.ndarray
             The n-by-1 mutation rate vector.
-    F : np.ndarray
+    F_mat : np.ndarray
             The n-by-n fitness matrix.
     common_beta : float, optional
             The common death rate. Defaults to 0.8 (average 40 weeks).
@@ -78,7 +78,7 @@ def _generate_one_tree(
             tree=root,
             n_mutations=n_mutations,
             mu_vec=mu_vec,
-            F=F,
+            F_mat=F_mat,
             common_beta=common_beta,
             rule=rule,
             k_repeat=k_repeat,
@@ -136,7 +136,7 @@ def _generate_valid_tree(
     rng: np.random.Generator,
     n_mutations: int,
     mu_vec: np.ndarray,
-    F: np.ndarray,
+    F_mat: np.ndarray,
     common_beta: float = 0.8,
     C_0: int | float | np.ndarray = 1e5,
     C_min: int | float | np.ndarray = 1e3,
@@ -154,7 +154,7 @@ def _generate_valid_tree(
             rng=rng,
             n_mutations=n_mutations,
             mu_vec=mu_vec,
-            F=F,
+            F_mat=F_mat,
             common_beta=common_beta,
             C_0=C_0,
             C_min=C_min,
@@ -176,7 +176,7 @@ def generate_trees(
     n_mutations: int,
     N_trees: int,
     mu_vec: np.ndarray,
-    F: np.ndarray,
+    F_mat: np.ndarray,
     common_beta: float = 0.8,
     C_0: int | float | np.ndarray = 1e5,
     C_min: int | float | np.ndarray = 1e3,
@@ -202,7 +202,7 @@ def generate_trees(
             The number of trees to generate.
     mu_vec : np.ndarray
             The n-by-1 mutation rate vector.
-    F : np.ndarray
+    F_mat : np.ndarray
             The n-by-n fitness matrix.
     common_beta : float, optional
             The common death rate. Defaults to 0.8 (average 40 weeks).
@@ -242,7 +242,7 @@ def generate_trees(
             rng=rng,
             n_mutations=n_mutations,
             mu_vec=mu_vec,
-            F=F,
+            F_mat=F_mat,
             common_beta=common_beta,
             C_0=C_0,
             C_min=C_min,

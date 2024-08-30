@@ -69,7 +69,7 @@ class Subclone(SubcloneBase, NodeMixin):
     def get_growth_params(
         self,
         mu_vec: np.ndarray,
-        F: np.ndarray,
+        F_mat: np.ndarray,
         common_beta: float,
         return_dict: bool = False,
     ) -> dict | Any:
@@ -77,7 +77,7 @@ class Subclone(SubcloneBase, NodeMixin):
 
         Args:
             mu_vec: mutation rate vector
-            F: fitness matrix
+            F_mat: fitness matrix
             common_beta: common death rate
             return_dict: whether to return a dict or not
 
@@ -124,7 +124,7 @@ class Subclone(SubcloneBase, NodeMixin):
             coef = 1
             for i in range(len(gen_list)):
                 for j in range(i, len(gen_list)):
-                    coef *= F[gen_list[i], gen_list[j]]
+                    coef *= F_mat[gen_list[i], gen_list[j]]
             alpha = common_beta * coef
 
             # death rate
