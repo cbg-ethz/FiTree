@@ -39,10 +39,18 @@ class TumorTree:
         return all_mutation_ids
 
     def __str__(self) -> str:
-        return RenderTree(self.root).by_attr(
+        if self.sampling_time is not None:
+            tree_str = f"Tumor tree {self.tree_id} of patient \
+                {self.patient_id} at time {self.sampling_time}\n"
+        else:
+            tree_str = f"Tumor tree {self.tree_id} of patient {self.patient_id}\n"
+
+        tree_str += RenderTree(self.root).by_attr(
             lambda node: f"(Node ID: {node.node_id}) \n"
             + f" - Mutations: {node.mutation_ids} \n"
             + f" - Cell number: {node.cell_number:.4E} \n"
             + f" - Mutation rate: {node.growth_params['nu']:.4E} \n"
             + f" - Net growth rate: {node.growth_params['lam']:.4E}"
         )
+
+        return tree_str
