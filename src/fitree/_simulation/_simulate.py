@@ -17,7 +17,7 @@ def _generate_one_tree(
     C_min: int | float | np.ndarray = 1e3,
     C_sampling: int | float | np.ndarray = 1e9,
     tau: float = 1e-3,
-    T_max: float = 100,
+    t_max: float = 100,
     rule: str = "parallel",
     k_repeat: int = 0,
     k_multiple: int = 1,
@@ -55,7 +55,7 @@ def _generate_one_tree(
                     but up to k_multiple times.
     tau: float, optional
             The step size of the tau-leaping algorithm. Defaults to 1e-3.
-    T_max : float, optional
+    t_max : float, optional
             The maximum time to generate the tree. Defaults to 100.
 
     Returns
@@ -72,7 +72,7 @@ def _generate_one_tree(
     sampling = 0
 
     """ Gillespie loop """
-    while t < T_max and sampling == 0:
+    while t < t_max and sampling == 0:
         # Dynamically expand the tree based on the tree expansion rule
         root = _expand_tree(
             tree=root,
@@ -142,13 +142,13 @@ def _generate_valid_tree(
     C_min: int | float | np.ndarray = 1e3,
     C_sampling: int | float | np.ndarray = 1e9,
     tau: float = 1e-3,
-    T_max: float = 100,
+    t_max: float = 100,
     rule: str = "parallel",
     k_repeat: int = 0,
     k_multiple: int = 1,
 ) -> Tuple[Subclone, float]:
     # Generate a tree and ensure that the sampling event occurs
-    # before the maximum time T_max
+    # before the maximum time t_max
     while True:
         root, t = _generate_one_tree(
             rng=rng,
@@ -160,12 +160,12 @@ def _generate_valid_tree(
             C_min=C_min,
             C_sampling=C_sampling,
             tau=tau,
-            T_max=T_max,
+            t_max=t_max,
             rule=rule,
             k_repeat=k_repeat,
             k_multiple=k_multiple,
         )
-        if t < T_max:
+        if t < t_max:
             break
 
     return root, t
@@ -182,7 +182,7 @@ def generate_trees(
     C_min: int | float | np.ndarray = 1e3,
     C_sampling: int | float | np.ndarray = 1e9,
     tau: float = 1e-3,
-    T_max: float = 100,
+    t_max: float = 100,
     rule: str = "parallel",
     k_repeat: int = 0,
     k_multiple: int = 1,
@@ -223,7 +223,7 @@ def generate_trees(
                     but up to k_multiple times.
     tau: float, optional
             The step size of the tau-leaping algorithm. Defaults to 1e-3.
-    T_max : float, optional
+    t_max : float, optional
             The maximum time to generate the tree. Defaults to 100.
     return_time : bool, optional
             Whether to return the sampling time. Defaults to False.
@@ -248,7 +248,7 @@ def generate_trees(
             C_min=C_min,
             C_sampling=C_sampling,
             tau=tau,
-            T_max=T_max,
+            t_max=t_max,
             rule=rule,
             k_repeat=k_repeat,
             k_multiple=k_multiple,
