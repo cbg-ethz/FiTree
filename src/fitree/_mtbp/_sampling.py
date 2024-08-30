@@ -72,7 +72,7 @@ def _mcdf_sampling(
     t: float | np.ndarray,
     C_sampling: int | np.ndarray,
     C_0: int | np.ndarray,
-    epsilon: float | np.ndarray | mp.mpf = 0.01,
+    tau: float | np.ndarray | mp.mpf = 0.01,
 ) -> float | np.ndarray:
     log_mcdf = 0
     for ch in tree.root.children:
@@ -89,11 +89,11 @@ def _mcdf_sampling(
                 C_0
                 * gpar_ch["rho"]
                 * t_
-                / epsilon
+                / tau
                 * mp.log(
                     gpar_ch["phi"]
                     + (1 - gpar_ch["phi"])
-                    * mp.exp(-_g_tilde(ch, t_, C_sampling) / t_ * epsilon)
+                    * mp.exp(-_g_tilde(ch, t_, C_sampling) / t_ * tau)
                 )
             )
 
