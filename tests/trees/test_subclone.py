@@ -41,7 +41,7 @@ def test_growth_params():
     assert gpar["nu"] == 0
     assert gpar["alpha"] == 1
     assert gpar["beta"] == 1
-    assert gpar["lambda"] == 0
+    assert gpar["lam"] == 0
     assert gpar["delta"] == 0
     assert gpar["r"] == 1
     assert gpar["rho"] == 0
@@ -52,18 +52,18 @@ def test_growth_params():
     assert gpar["nu"] == 0.3
     assert gpar["alpha"] == 1.2
     assert gpar["beta"] == 1
-    assert gpar["lambda"] == 1.2 - 1
-    assert gpar["delta"] == gpar["lambda"]
+    assert gpar["lam"] == 1.2 - 1
+    assert gpar["delta"] == gpar["lam"]
     assert gpar["r"] == 1
     assert gpar["rho"] == 0.25
-    assert gpar["phi"] == 1.2 / gpar["lambda"]
+    assert gpar["phi"] == 1.2 / gpar["lam"]
     assert gpar["gamma"] == 0
 
     gpar = v2.get_growth_params(mu_vec, F, common_beta, True)
     assert gpar["nu"] == 0.4
     assert gpar["alpha"] == 1
     assert gpar["beta"] == 1
-    assert gpar["lambda"] == 0
+    assert gpar["lam"] == 0
     assert gpar["delta"] == 0
     assert gpar["r"] == 2
     assert gpar["rho"] == 0.4
@@ -74,7 +74,7 @@ def test_growth_params():
     assert gpar["nu"] == 0.5 * 0.6
     assert gpar["alpha"] == 1.2 * 0.5 * 0.3
     assert gpar["beta"] == common_beta
-    assert gpar["lambda"] == 1.2 * 0.5 * 0.3 - 1
+    assert gpar["lam"] == 1.2 * 0.5 * 0.3 - 1
     assert gpar["delta"] == 1.2 - 1
     assert gpar["r"] == 1
     assert gpar["rho"] == 5 / 3
