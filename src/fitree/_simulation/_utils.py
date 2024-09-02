@@ -83,8 +83,6 @@ def _expand_tree(
             The maximum number of multiple mutations allowed. Defaults to 1.
     """
 
-    node_id_counter = tree.size
-
     if rule == "parallel":
         for node in tree.leaves:
             if node.cell_number > 0:
@@ -93,7 +91,7 @@ def _expand_tree(
                 )
                 for j in possible_mutations:
                     new_node = Subclone(
-                        node_id=node_id_counter,
+                        node_id=tree.size,
                         mutation_ids=[j],
                         cell_number=0,
                         parent=node,
@@ -101,7 +99,6 @@ def _expand_tree(
                     new_node.get_growth_params(
                         mu_vec=mu_vec, F_mat=F_mat, common_beta=common_beta
                     )
-                    node_id_counter += 1
     else:
         raise NotImplementedError
         # TODO: implement other rules
