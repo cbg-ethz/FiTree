@@ -1,4 +1,5 @@
 from typing import Any
+import numpy as np
 
 from ._tumor import TumorTree
 
@@ -11,43 +12,32 @@ class TumorTreeCohort:
         n_mutations: int = 0,
         N_trees: int = 0,
         N_patients: int = 0,
+        mu_vec: np.ndarray | None = None,
+        common_beta: float = None,
+        C_0: int | float = None,
+        C_min: int | float = None,
+        C_sampling: int | float = None,
+        t_max: float = None,
         mutation_labels: dict | Any = None,
         tree_labels: dict | Any = None,
         patient_labels: dict | Any = None,
     ) -> None:
         self.name = name
+        self.trees = trees
+        self.n_mutations = n_mutations
+        self.N_trees = N_trees
+        self.N_patients = N_patients
+        self.mu_vec = mu_vec
+        self.common_beta = common_beta
+        self.C_0 = C_0
+        self.C_min = C_min
+        self.C_sampling = C_sampling
+        self.t_max = t_max
+        self.mutation_labels = mutation_labels
+        self.tree_labels = tree_labels
+        self.patient_labels = patient_labels
 
-        if trees is not None:
-            self.n_mutations = n_mutations
-            self.N_trees = N_trees
-            self.N_patients = N_patients
-
-            if len(mutation_labels) != n_mutations:
-                raise ValueError("mutation_labels must have length n_mutations")
-            self.mutation_labels = mutation_labels
-
-            if len(tree_labels) != N_trees:
-                raise ValueError("tree_labels must have length N_trees")
-            self.tree_labels = tree_labels
-
-            if len(trees) != N_trees:
-                raise ValueError("trees must have length N_trees")
-            self.trees = trees
-
-            if len(patient_labels) != N_patients:
-                raise ValueError("patient_labels must have length N_patients")
-            self.patient_labels = patient_labels
-
-            self._check_trees()
-
-        else:
-            self.trees = []
-            self.n_mutations = 0
-            self.N_trees = 0
-            self.N_patients = 0
-            self.mutation_labels = {}
-            self.tree_labels = {}
-            self.patient_labels = {}
+        self._check_trees()
 
     def _check_trees(self) -> None:
         # check if the mutations in the trees all have labels
@@ -65,48 +55,23 @@ class TumorTreeCohort:
                     f"mutation_labels does not have label for mutation {mutation_id}"
                 )
 
-    def add_tree(
-        self,
-        tree: TumorTree,
-        patient_label: str | None = None,
-        tree_label: str | None = None,
-    ) -> None:
-        self.trees.append(tree)
-        mutation_ids_in_tree = tree.get_mutation_ids()
+        if len(self.trees) != self.N_trees:
+            raise ValueError("trees must have length N_trees")
 
-        # check if the mutation_ids in the tree are already in the cohort
-        # if not, add them
-        for mutation_id in mutation_ids_in_tree:
-            if mutation_id not in self.mutation_labels:
-                self.mutation_labels[mutation_id] = f"M_{mutation_id}"
-                self.n_mutations += 1
+        if len(self.mutation_labels) != self.n_mutations:
+            raise ValueError("mutation_labels must have length n_mutations")
 
-        # check if the patient label is already in the cohort
-        # if not, add it
-        if tree.patient_id not in self.patient_labels:
-            if patient_label is None:
-                patient_label = f"P_{tree.patient_id}"
-            self.patient_labels[tree.patient_id] = patient_label
-            self.N_patients += 1
-        else:
-            if patient_label is not None:
-                if patient_label != self.patient_labels[tree.patient_id]:
-                    raise ValueError(
-                        f"patient_label for patient {tree.patient_id} \
-                            does not match the existing label"
-                    )
+        if len(self.tree_labels) != self.N_trees:
+            raise ValueError("tree_labels must have length N_trees")
 
-        # check if the tree label is already in the cohort
-        # if not, add it
-        if tree.tree_id not in self.tree_labels:
-            if tree_label is None:
-                tree_label = f"T_{tree.tree_id}"
-            self.tree_labels[tree.tree_id] = tree_label
-            self.N_trees += 1
-        else:
-            if tree_label is not None:
-                if tree_label != self.tree_labels[tree.tree_id]:
-                    raise ValueError(
-                        f"tree_label for tree {tree.tree_id} \
-                            does not match the existing label"
-                    )
+        if len(self.patient_labels) != self.N_patients:
+            raise ValueError("patient_labels must have length N_patients")
+
+        # TODO: implement other checks
+
+    def get_t_max(self) -> None:
+        self.t_max = 0.0
+
+        for tree in self.trees:
+            if tree.sampling_time > self.t_max:
+                self.t_max = tree.sampling_time
