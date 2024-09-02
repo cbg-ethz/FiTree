@@ -53,6 +53,11 @@ class Subclone(SubcloneBase, NodeMixin):
                 "phi": 0,
                 "gamma": 0,
             }
+            self.node_path = str([])
+        else:
+            self.node_path = (
+                self.parent.node_path + "->" + str(np.sort(self.mutation_ids))
+            )
 
     def get_genotype(self) -> set:
         genotype = set()
