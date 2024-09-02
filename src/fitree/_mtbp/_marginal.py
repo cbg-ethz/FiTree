@@ -20,7 +20,7 @@ def _g(
         phi = gpar_v["phi"]
         rho = gpar_v["rho"]
 
-        if gpar_v["lambda"] < 0:
+        if gpar_v["lam"] < 0:
             return mp.power(
                 phi + (1 - phi) * mp.exp(-theta * epsilon / t), -rho * C_0 * t / epsilon
             )

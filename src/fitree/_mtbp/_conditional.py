@@ -7,16 +7,16 @@ from fitree._trees import Subclone
 def _h(
     theta: float | np.ndarray | mp.mpf, gpar_v: dict, gpar_pa_v: dict
 ) -> float | np.ndarray | mp.mpf:
-    if gpar_pa_v["delta"] > gpar_v["lambda"]:
-        return gpar_v["nu"] * theta / (gpar_pa_v["delta"] - gpar_v["lambda"])
+    if gpar_pa_v["delta"] > gpar_v["lam"]:
+        return gpar_v["nu"] * theta / (gpar_pa_v["delta"] - gpar_v["lam"])
 
-    elif gpar_pa_v["delta"] == gpar_v["lambda"]:
+    elif gpar_pa_v["delta"] == gpar_v["lam"]:
         return gpar_v["nu"] * theta / gpar_pa_v["r"]
 
     else:
         if gpar_v["gamma"] == 0:
             h = -gpar_v["rho"] * mp.fac(gpar_pa_v["r"] - 1)
-            h /= mp.power(gpar_v["lambda"], gpar_pa_v["r"] - 1)
+            h /= mp.power(gpar_v["lam"], gpar_pa_v["r"] - 1)
             h *= mp.polylog(gpar_pa_v["r"], -gpar_v["phi"] * theta)
 
             return h
@@ -25,7 +25,7 @@ def _h(
             h = gpar_v["rho"] * mp.power(gpar_v["phi"], gpar_v["gamma"])
             h *= mp.pi / mp.sin(mp.pi * gpar_v["gamma"])
             h *= mp.fac(gpar_pa_v["r"] - 1)
-            h /= mp.power(gpar_v["lambda"], gpar_pa_v["r"] - 1)
+            h /= mp.power(gpar_v["lam"], gpar_pa_v["r"] - 1)
             h *= mp.power(mp.log(theta * gpar_v["phi"]), gpar_v["r"] - 1)
             h /= mp.fac(gpar_v["r"] - 1)
             h *= mp.power(theta, gpar_v["gamma"])

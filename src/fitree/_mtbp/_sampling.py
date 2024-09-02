@@ -77,14 +77,14 @@ def _mcdf_sampling(
     log_mcdf = 0
     for ch in tree.root.children:
         gpar_ch = ch.growth_params
-        if gpar_ch["lambda"] >= 0:
+        if gpar_ch["lam"] >= 0:
             log_mcdf -= (
                 C_0
                 * gpar_ch["rho"]
                 * mp.log(1 + gpar_ch["phi"] * _g_tilde(ch, t, C_sampling))
             )
         else:
-            t_ = t + 1 / gpar_ch["lambda"]
+            t_ = t + 1 / gpar_ch["lam"]
             log_mcdf -= (
                 C_0
                 * gpar_ch["rho"]
