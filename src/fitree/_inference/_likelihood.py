@@ -1,0 +1,495 @@
+import jax
+import jax.numpy as jnp
+import jax.scipy.stats as jstats
+import jax.scipy.special as jss
+
+from ._utils import polylog, ETA_VEC, BETA_VEC
+from ._wrapper import VectorizedTrees
+
+
+@jax.jit
+def _pt(alpha: jnp.ndarray, beta: jnp.ndarray, lam: jnp.ndarray, t: jnp.ndarray):
+    """This function computes the success probability
+    of the negative Binomial distribution for the one-type
+    branching process. (See Lemma 1 in the supplement)
+    """
+
+    return jnp.where(
+        lam == 0.0, 1 / (1 + alpha * t), lam / (alpha * jnp.exp(lam * t) - beta)
+    )
+
+
+@jax.jit
+def _lp2_case1(
+    x1: jnp.ndarray,
+    x2: jnp.ndarray,
+    t: jnp.ndarray,
+    par1: dict,
+    par2: dict,
+    eps: float = 1e-16,
+):
+    """This function computes the log-likelihood of a subclone
+    given its parent for the case when it is less fit than its parent.
+    The means are given by Nicholson et al. (2023), and the variance is
+    estimated through simulations. (See Theorem 2 in the supplement)
+
+    Args:
+        x1 : jnp.ndarray
+            The number of cells in the parent subclone.
+        x2 : jnp.ndarray
+            The number of cells in the subclone.
+        t : jnp.ndarray
+            The sampling time.
+        par1 : dict
+            The growth parameters of the parent subclone.
+        par2 : dict
+            The growth parameters of the subclone.
+        eps : float, optional
+            The machine epsilon. Defaults to 1e-16.
+    """
+
+    delta1 = par1["delta"]
+    r1 = par1["r"]
+    delta2 = par2["delta"]
+    lam2 = par2["lam"]
+    r2 = par2["r"]
+    nu2 = par2["nu"]
+
+    x1_tilde = (x1 + 1) * jnp.exp(-delta1 * t) * jnp.power(t, 1 - r1)
+    x2_tilde = (x2 + 1) * jnp.exp(-delta2 * t) * jnp.power(t, 1 - r2)
+
+    rate = jnp.exp(-0.015 * delta1 * t - 0.464 * lam2 * t)
+    rate *= jnp.exp(delta2 * t) * jnp.power(t, r2 - 1)
+
+    p2_temp = jstats.gamma.cdf(
+        x2_tilde, a=nu2 / (delta1 - lam2) * x1_tilde * rate, scale=1 / rate
+    )
+
+    p2 = jnp.where(
+        x2 > 0,
+        p2_temp
+        - jstats.gamma.cdf(
+            x2 * jnp.exp(-delta1 * t) * jnp.power(t, 1 - r2),
+            a=nu2 / (delta1 - lam2) * x1_tilde * rate,
+            scale=1 / rate,
+        ),
+        p2_temp,
+    )
+
+    p2 = jnp.max(jnp.array([p2, 0.0]))
+    lp2 = jnp.log(p2 + eps)
+
+    return lp2
+
+
+@jax.jit
+def _lp2_case2(
+    x1: jnp.ndarray,
+    x2: jnp.ndarray,
+    t: jnp.ndarray,
+    par1: dict,
+    par2: dict,
+    eps: float = 1e-16,
+):
+    """This function computes the log-likelihood of a subclone
+    given its parent when they are equally fit.
+    The means are given by Nicholson et al. (2023), and the variance is
+    estimated through simulations. (See Theorem 2 in the supplement)
+
+
+    Args:
+        x1 : jnp.ndarray
+            The number of cells in the parent subclone.
+        x2 : jnp.ndarray
+            The number of cells in the subclone.
+        t : jnp.ndarray
+            The sampling time.
+        par1 : dict
+            The growth parameters of the parent subclone.
+        par2 : dict
+            The growth parameters of the subclone.
+        eps : float, optional
+            The machine epsilon. Defaults to 1e-16.
+    """
+
+    delta1 = par1["delta"]
+    r1 = par1["r"]
+    r2 = par2["r"]
+    nu2 = par2["nu"]
+
+    x1_tilde = (x1 + 1) * jnp.exp(-delta1 * t) * jnp.power(t, 1 - r1)
+    x2_tilde = (x2 + 1) * jnp.exp(-delta1 * t) * jnp.power(t, 1 - r2)
+
+    log_rate = -0.691 * jnp.log(x1_tilde) + 2.973 * jnp.log(delta1 * t + eps)
+    rate = jnp.exp(log_rate)
+
+    p2_temp = jstats.gamma.cdf(x2_tilde, a=nu2 / r1 * x1_tilde * rate, scale=1 / rate)
+
+    p2 = jnp.where(
+        x2 > 0,
+        p2_temp
+        - jstats.gamma.cdf(
+            x2 * jnp.exp(-delta1 * t) * jnp.power(t, 1 - r2),
+            a=nu2 / r1 * x1_tilde * rate,
+            scale=1 / rate,
+        ),
+        p2_temp,
+    )
+
+    p2 = jnp.max(jnp.array([p2, 0.0]))
+    lp2 = jnp.log(p2 + eps)
+
+    return lp2
+
+
+@jax.jit
+def _h(theta: jnp.ndarray, par1: dict, par2: dict):
+    """This function computes the h function for the conditional
+    laplace transform given by Theorem 2 and Proposition 1 in the supplement.
+    """
+
+    delta1 = par1["delta"]
+    rho2 = par2["rho"]
+    lam2 = par2["lam"]
+    r1 = par1["r"]
+    r2 = par2["r"]
+    nu2 = par2["nu"]
+    phi2 = par2["phi"]
+    gamma2 = par2["gamma"]
+
+    def h1(theta):
+        return nu2 * theta / (delta1 - lam2)
+
+    def h2(theta):
+        return nu2 * theta / r1
+
+    def h31(theta):
+        _h = (
+            -rho2 * jss.gamma(r1) / jnp.power(lam2, r1 - 1) * polylog(r1, -phi2 * theta)
+        )
+        return _h
+
+    def h32(theta):
+        _h = (
+            rho2
+            * jnp.power(phi2 * theta, gamma2)
+            * jnp.pi
+            / jnp.sin(jnp.pi * gamma2)
+            * jss.gamma(r1)
+            / jnp.power(lam2, r1 - 1)
+            * jnp.power(jnp.log(theta * phi2), r2 - 1)
+            / jss.gamma(r2)
+        )
+
+        return _h
+
+    def h3(theta):
+        return jax.lax.cond(gamma2 == 0.0, h31, h32, theta)
+
+    lam_diff = lam2 - delta1
+
+    return jax.lax.switch(
+        (jnp.sign(lam_diff) + 1).astype(jnp.int32), [h1, h2, h3], theta
+    )
+
+
+@jax.jit
+def _lp2_case3(
+    x1: jnp.ndarray,
+    x2: jnp.ndarray,
+    t: jnp.ndarray,
+    par1: dict,
+    par2: dict,
+    eps: float = 1e-16,
+):
+    """This function computes the log-likelihood of a subclone
+    given its parent when it is more fit. For this one, we need
+    the inverse laplace transform (See Theorem 2 in the supplement)
+
+
+    Args:
+        x1 : jnp.ndarray
+            The number of cells in the parent subclone.
+        x2 : jnp.ndarray
+            The number of cells in the subclone.
+        t : jnp.ndarray
+            The sampling time.
+        par1 : dict
+            The growth parameters of the parent subclone.
+        par2 : dict
+            The growth parameters of the subclone.
+        eps : float, optional
+            The machine epsilon. Defaults to 1e-16.
+    """
+
+    delta1 = par1["delta"]
+    r1 = par1["r"]
+    delta2 = par2["delta"]
+    r2 = par2["r"]
+    x1_tilde = (x1 + 1) * jnp.exp(-delta1 * t) * jnp.power(t, 1 - r1)
+
+    def lp_func(theta):
+        return jnp.exp(-_h(theta, par1, par2) * x1_tilde) / theta
+
+    def ilp(theta):
+        fp = jax.vmap(lp_func)(BETA_VEC / theta)
+        return jnp.dot(ETA_VEC, fp).real / theta
+
+    p2_temp = ilp((x2 + 1) * jnp.exp(-delta2 * t) * jnp.power(t, 1 - r2))
+
+    p2 = jnp.where(
+        x2 > 0, p2_temp - ilp(x2 * jnp.exp(-delta2 * t) * jnp.power(t, 1 - r2)), p2_temp
+    )
+
+    p2 = jnp.max(jnp.array([p2, 0.0]))
+    lp2 = jnp.log(p2 + eps)
+
+    return lp2
+
+
+@jax.jit
+def integrate_by_parts(
+    t: jnp.ndarray, r: jnp.ndarray, delta: jnp.ndarray, integral: jnp.ndarray
+):
+    """Helper function for q_tilde function."""
+
+    def I1(t, r, delta):
+        return (t, r - 1, delta, (jnp.exp(delta * t) - 1) / delta)
+
+    def I2(t, r, delta):
+        return (
+            t,
+            r - 1,
+            delta,
+            (jnp.power(t, r - 1) * jnp.exp(delta * t) - (r - 1) * integral) / delta,
+        )
+
+    return jax.lax.cond(r == 1.0, I1, I2, t, r, delta)
+
+
+@jax.jit
+def integrate2(t: jnp.ndarray, r: jnp.ndarray, delta: jnp.ndarray):
+    """Helper function for q_tilde function."""
+
+    integral = 0.0
+
+    def cond_fun(val):
+        t, r, delta, integral = val
+        return r > 0
+
+    def body_fun(val):
+        t, r, delta, integral = val
+        return integrate_by_parts(t, r, delta, integral)
+
+    _, _, _, integral = jax.lax.while_loop(cond_fun, body_fun, (t, r, delta, integral))
+
+    return integral
+
+
+@jax.jit
+def integrate1(t: jnp.ndarray, r: jnp.ndarray, delta: jnp.ndarray):
+    """Helper function for q_tilde function."""
+
+    return jnp.power(t, r) / r
+
+
+@jax.jit
+def integrate(t: jnp.ndarray, r: jnp.ndarray, delta: jnp.ndarray):
+    """Helper function for q_tilde function."""
+
+    return jax.lax.cond(delta == 0.0, integrate1, integrate2, t, r, delta)
+
+
+@jax.jit
+def _q_tilde(t: jnp.ndarray, C_s: jnp.ndarray, r: jnp.ndarray, delta: jnp.ndarray):
+    """This function computes the q_tilde function defined
+    in Theorem 3 in the supplement.
+    """
+
+    return integrate(t, r, delta) / C_s
+
+
+def get_pars(tree: VectorizedTrees, i: int):
+    """Helper function to collect the parent and child parameters
+    for a given node in the tree.
+
+    Args:
+        tree : VectorizedTrees
+            The tree object.
+        i : int
+            The index of the node in the tree.
+
+    Returns:
+        (par_pa, par_i) : tuple(dict, dict)
+            The parent and child parameters.
+    """
+
+    par_i = {
+        "alpha": tree.alpha[i],
+        "nu": tree.nu[i],
+        "lam": tree.lam[i],
+        "rho": tree.rho[i],
+        "phi": tree.phi[i],
+        "delta": tree.delta[i],
+        "r": tree.r[i],
+        "gamma": tree.gamma[i],
+        "beta": tree.beta,
+        "C_s": tree.C_s,
+        "C_0": tree.C_0,
+    }
+
+    pa_i = tree.parent_id[i]
+    par_pa = {
+        "alpha": tree.alpha[pa_i],
+        "nu": tree.nu[pa_i],
+        "lam": tree.lam[pa_i],
+        "rho": tree.rho[pa_i],
+        "phi": tree.phi[pa_i],
+        "delta": tree.delta[pa_i],
+        "r": tree.r[pa_i],
+        "gamma": tree.gamma[pa_i],
+        "beta": tree.beta,
+        "C_s": tree.C_s,
+        "C_0": tree.C_0,
+    }
+
+    return par_pa, par_i
+
+
+@jax.jit
+def jlogp_one_node(x: jnp.ndarray, t: jnp.ndarray, par: dict, eps: float = 1e-16):
+    """This function computes the log-likelihood of a subclone
+    if its parent is the root. (See Lemma 1 and Theorem 1 in the supplement)
+
+    It also computes part of the log-likelihood of the sampling time
+    given the subclone. (See Theorem 3 in the supplement)
+
+    Args:
+        x : jnp.ndarray
+            The number of cells in the subclone.
+        t : jnp.ndarray
+            The sampling time.
+        par : dict
+            The growth parameters of the subclone.
+    """
+
+    lp = jstats.nbinom.pmf(
+        k=x, n=par["C_0"] * par["rho"], p=_pt(par["alpha"], par["beta"], par["lam"], t)
+    )
+    lp = jnp.log(lp + eps)
+
+    x_tilde = (x + 1) * jnp.exp(-par["delta"] * t) * jnp.power(t, 1 - par["r"])
+
+    lt = -_q_tilde(t, par["C_s"], par["r"], par["delta"]) * x_tilde
+
+    return lp + lt
+
+
+@jax.jit
+def jlogp_two_nodes(
+    x1: jnp.ndarray,
+    x2: jnp.ndarray,
+    t: jnp.ndarray,
+    par1: dict,
+    par2: dict,
+    eps: float = 1e-16,
+):
+    """This function computes the log-likelihood of a subclone
+    given its parent. (See Theorem 2 in the supplement)
+
+    Args:
+        x1 : jnp.ndarray
+            The number of cells in the parent subclone.
+        x2 : jnp.ndarray
+            The number of cells in the subclone.
+        t : jnp.ndarray
+            The sampling time.
+        par1 : dict
+            The growth parameters of the parent subclone.
+        par2 : dict
+            The growth parameters of the subclone.
+        eps : float, optional
+            The machine epsilon. Defaults to 1e-16.
+    """
+
+    lam_diff = par2["lam"] - par1["delta"]
+
+    lp = jax.lax.switch(
+        (jnp.sign(lam_diff) + 1).astype(jnp.int32),
+        [_lp2_case1, _lp2_case2, _lp2_case3],
+        x1,
+        x2,
+        t,
+        par1,
+        par2,
+        eps,
+    )
+
+    x2_tilde = (x2 + 1) * jnp.exp(-par2["delta"] * t) * jnp.power(t, 1 - par2["r"])
+    lt = -_q_tilde(t, par2["C_s"], par2["r"], par2["delta"]) * x2_tilde
+
+    return lp + lt
+
+
+@jax.jit
+def jlogp_one_tree(tree: VectorizedTrees, eps: float = 1e-16):
+    """This function computes the log-likelihood of a tree"""
+
+    jlogp = jax.lax.fori_loop(
+        0,
+        tree.n_nodes,
+        lambda i, jlogp: jlogp
+        + jax.lax.cond(
+            tree.parent_id[i] == -1,  # if the parent is the root
+            lambda x1, x2, t, par1, par2, eps: jlogp_one_node(x2, t, par2, eps),
+            jlogp_two_nodes,
+            tree.cell_number[tree.parent_id[i]],
+            tree.cell_number[i],
+            tree.sampling_time,
+            *get_pars(tree, i),
+            eps
+        ),
+        0.0,
+    )
+
+    jlogp += jnp.log(jnp.sum(tree.cell_number) + eps) - jnp.log(tree.C_s)
+
+    return jlogp
+
+
+@jax.jit
+def unnormalized_joint_logp(trees: VectorizedTrees, eps: float = 1e-16) -> jnp.ndarray:
+    """This function computes the unnormalized joint log-likelihood
+    of a set of trees. We still need to normalize it by the marginal
+    probability of the sampling event occurring before some predefined
+    maximum time, which is given in Theorem 3 in the supplement.
+    """
+
+    jlogp = jax.vmap(
+        jlogp_one_tree,
+        in_axes=(
+            VectorizedTrees(
+                0,
+                0,
+                0,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            ),
+            None,
+        ),
+    )(trees, eps)
+
+    return jnp.dot(trees.weight, jlogp)
