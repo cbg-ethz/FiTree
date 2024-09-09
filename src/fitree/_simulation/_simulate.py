@@ -1,4 +1,5 @@
 import numpy as np
+import joblib
 
 from anytree import PreOrderIter
 from typing import Tuple
@@ -134,6 +135,7 @@ def _generate_one_tree(
 
 def _generate_valid_tree(
     rng: np.random.Generator,
+    i: int,
     n_mutations: int,
     mu_vec: np.ndarray,
     F_mat: np.ndarray,
@@ -146,6 +148,7 @@ def _generate_valid_tree(
     rule: str = "parallel",
     k_repeat: int = 0,
     k_multiple: int = 1,
+    return_time: bool = False,
 ) -> Tuple[Subclone, float]:
     # Generate a tree and ensure that the sampling event occurs
     # before the maximum time t_max
@@ -168,7 +171,12 @@ def _generate_valid_tree(
         if t < t_max:
             break
 
-    return root, t
+    if return_time:
+        tree = TumorTree(patient_id=i, tree_id=i, root=root, sampling_time=t)
+    else:
+        tree = TumorTree(patient_id=i, tree_id=i, root=root)
+
+    return tree
 
 
 def generate_trees(
@@ -236,10 +244,12 @@ def generate_trees(
             Generated trees and the times.
     """
 
-    trees = []
-    for i in range(N_trees):
-        root, t = _generate_valid_tree(
-            rng=rng,
+    seeds = rng.integers(0, 2**32 - 1, size=N_trees)
+
+    trees = joblib.Parallel(n_jobs=-1)(
+        joblib.delayed(_generate_valid_tree)(
+            rng=np.random.default_rng(seeds[i]),
+            i=i,
             n_mutations=n_mutations,
             mu_vec=mu_vec,
             F_mat=F_mat,
@@ -252,14 +262,10 @@ def generate_trees(
             rule=rule,
             k_repeat=k_repeat,
             k_multiple=k_multiple,
+            return_time=return_time,
         )
-
-        if return_time:
-            tree = TumorTree(patient_id=i, tree_id=i, root=root, sampling_time=t)
-        else:
-            tree = TumorTree(patient_id=i, tree_id=i, root=root)
-
-        trees.append(tree)
+        for i in range(N_trees)
+    )
 
     cohort = TumorTreeCohort(
         name="simulated",
