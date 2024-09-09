@@ -137,3 +137,57 @@ def polylog(n, z):
         return carry
 
     return jax.lax.fori_loop(0, max_k + 1, body_fun, 0.0) * (-2.0)
+
+
+@jax.jit
+def integrate_by_parts(
+    t: jnp.ndarray, rr: jnp.ndarray, delta: jnp.ndarray, integral: jnp.ndarray
+):
+    """Helper function for integrate function."""
+
+    def I1(t, rr, delta):
+        return (t, rr + 1.0, delta, (jnp.exp(delta * t) - 1.0) / delta)
+
+    def I2(t, rr, delta):
+        return (
+            t,
+            rr + 1.0,
+            delta,
+            (jnp.power(t, rr) * jnp.exp(delta * t) - rr * integral) / delta,
+        )
+
+    return jax.lax.cond(rr == 0.0, I1, I2, t, rr, delta)
+
+
+@jax.jit
+def integrate2(t: jnp.ndarray, r: jnp.ndarray, delta: jnp.ndarray):
+    """Helper function for integrate function."""
+
+    def cond_fun(val):
+        t, rr, delta, integral = val
+        return rr <= r
+
+    def body_fun(val):
+        t, rr, delta, integral = val
+        return integrate_by_parts(t, rr, delta, integral)
+
+    _, _, _, integral = jax.lax.while_loop(cond_fun, body_fun, (t, 0.0, delta, 0.0))
+
+    return integral
+
+
+@jax.jit
+def integrate1(t: jnp.ndarray, r: jnp.ndarray, delta: jnp.ndarray):
+    """Helper function for integrate function."""
+
+    return jnp.power(t, r + 1.0) / (r + 1.0)
+
+
+@jax.jit
+def integrate(t: jnp.ndarray, r: jnp.ndarray, delta: jnp.ndarray):
+    """This function implements the integral of the form
+    $$ \int_0^t s^r \exp(\delta * s) ds $$ using the method of integration by parts.
+    r is a non-negative integer and delta is a real number.
+    """
+
+    return jax.lax.cond(delta == 0.0, integrate1, integrate2, t, r, delta)
