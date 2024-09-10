@@ -3,7 +3,7 @@ import jax.numpy as jnp
 import jax.scipy.stats as jstats
 import jax.scipy.special as jss
 
-from ._utils import polylog, ETA_VEC, BETA_VEC
+from ._utils import ETA_VEC, BETA_VEC, polylog, integrate
 from ._wrapper import VectorizedTrees
 
 
@@ -248,65 +248,12 @@ def _lp2_case3(
 
 
 @jax.jit
-def integrate_by_parts(
-    t: jnp.ndarray, r: jnp.ndarray, delta: jnp.ndarray, integral: jnp.ndarray
-):
-    """Helper function for q_tilde function."""
-
-    def I1(t, r, delta):
-        return (t, r - 1, delta, (jnp.exp(delta * t) - 1) / delta)
-
-    def I2(t, r, delta):
-        return (
-            t,
-            r - 1,
-            delta,
-            (jnp.power(t, r - 1) * jnp.exp(delta * t) - (r - 1) * integral) / delta,
-        )
-
-    return jax.lax.cond(r == 1.0, I1, I2, t, r, delta)
-
-
-@jax.jit
-def integrate2(t: jnp.ndarray, r: jnp.ndarray, delta: jnp.ndarray):
-    """Helper function for q_tilde function."""
-
-    integral = 0.0
-
-    def cond_fun(val):
-        t, r, delta, integral = val
-        return r > 0
-
-    def body_fun(val):
-        t, r, delta, integral = val
-        return integrate_by_parts(t, r, delta, integral)
-
-    _, _, _, integral = jax.lax.while_loop(cond_fun, body_fun, (t, r, delta, integral))
-
-    return integral
-
-
-@jax.jit
-def integrate1(t: jnp.ndarray, r: jnp.ndarray, delta: jnp.ndarray):
-    """Helper function for q_tilde function."""
-
-    return jnp.power(t, r) / r
-
-
-@jax.jit
-def integrate(t: jnp.ndarray, r: jnp.ndarray, delta: jnp.ndarray):
-    """Helper function for q_tilde function."""
-
-    return jax.lax.cond(delta == 0.0, integrate1, integrate2, t, r, delta)
-
-
-@jax.jit
 def _q_tilde(t: jnp.ndarray, C_s: jnp.ndarray, r: jnp.ndarray, delta: jnp.ndarray):
     """This function computes the q_tilde function defined
     in Theorem 3 in the supplement.
     """
 
-    return integrate(t, r, delta) / C_s
+    return integrate(t, r - 1.0, delta) / C_s
 
 
 def get_pars(tree: VectorizedTrees, i: int):
