@@ -15,7 +15,38 @@ def _pt(alpha: jnp.ndarray, beta: jnp.ndarray, lam: jnp.ndarray, t: jnp.ndarray)
     """
 
     return jnp.where(
-        lam == 0.0, 1 / (1 + alpha * t), lam / (alpha * jnp.exp(lam * t) - beta)
+        lam == 0.0, 1.0 / (1.0 + alpha * t), lam / (alpha * jnp.exp(lam * t) - beta)
+    )
+
+
+@jax.jit
+def _case1_var1(t, r1, delta1, alpha2, beta2, lam2):
+    # Variance function for delta1 > lam2 == 0.0
+
+    return (
+        jnp.power(t, -2.0 * r1 + 2.0)
+        * jnp.exp(-2.0 * delta1 * t)
+        * (
+            (1.0 + 2.0 * alpha2 * t) * integrate(t, r1 - 1.0, delta1)
+            - 2.0 * alpha2 * integrate(t, r1, delta1)
+        )
+    )
+
+
+@jax.jit
+def _case1_var2(t, r1, delta1, alpha2, beta2, lam2):
+    # Variance function for delta1 > lam2 != 0.0
+
+    return jnp.power(t, -2.0 * r1 + 2.0) * (
+        2.0
+        * alpha2
+        / lam2
+        * jnp.exp(-2.0 * (delta1 - lam2) * t)
+        * integrate(t, r1 - 1.0, delta1 - 2.0 * lam2)
+        - (alpha2 + beta2)
+        / lam2
+        * jnp.exp(-(2.0 * delta1 - lam2) * t)
+        * integrate(t, r1 - 1.0, delta1 - lam2)
     )
 
 
@@ -54,24 +85,28 @@ def _lp2_case1(
     lam2 = par2["lam"]
     r2 = par2["r"]
     nu2 = par2["nu"]
+    alpha2 = par2["alpha"]
+    beta2 = par2["beta"]
 
-    x1_tilde = (x1 + 1) * jnp.exp(-delta1 * t) * jnp.power(t, 1 - r1)
-    x2_tilde = (x2 + 1) * jnp.exp(-delta2 * t) * jnp.power(t, 1 - r2)
+    x1_tilde = (x1 + 1.0) * jnp.exp(-delta1 * t) * jnp.power(t, 1.0 - r1)
+    x2_tilde = (x2 + 1.0) * jnp.exp(-delta2 * t) * jnp.power(t, 1.0 - r2)
 
-    rate = jnp.exp(-0.015 * delta1 * t - 0.464 * lam2 * t)
-    rate *= jnp.exp(delta2 * t) * jnp.power(t, r2 - 1)
-
-    p2_temp = jstats.gamma.cdf(
-        x2_tilde, a=nu2 / (delta1 - lam2) * x1_tilde * rate, scale=1 / rate
+    gamma_mean = 1.0 / (delta1 - lam2)
+    gamma_var = jax.lax.cond(
+        lam2 == 0.0, _case1_var1, _case1_var2, t, r1, delta1, alpha2, beta2, lam2
     )
+    gamma_scale = gamma_var / gamma_mean
+    gamma_shape = gamma_mean / gamma_scale * nu2 * x1_tilde
+
+    p2_temp = jstats.gamma.cdf(x2_tilde, a=gamma_shape, scale=gamma_scale)
 
     p2 = jnp.where(
-        x2 > 0,
+        x2 > 0.0,
         p2_temp
         - jstats.gamma.cdf(
-            x2 * jnp.exp(-delta1 * t) * jnp.power(t, 1 - r2),
-            a=nu2 / (delta1 - lam2) * x1_tilde * rate,
-            scale=1 / rate,
+            x2 * jnp.exp(-delta1 * t) * jnp.power(t, 1.0 - r2),
+            a=gamma_shape,
+            scale=gamma_scale,
         ),
         p2_temp,
     )
@@ -117,8 +152,8 @@ def _lp2_case2(
     r2 = par2["r"]
     nu2 = par2["nu"]
 
-    x1_tilde = (x1 + 1) * jnp.exp(-delta1 * t) * jnp.power(t, 1 - r1)
-    x2_tilde = (x2 + 1) * jnp.exp(-delta1 * t) * jnp.power(t, 1 - r2)
+    x1_tilde = (x1 + 1.0) * jnp.exp(-delta1 * t) * jnp.power(t, 1.0 - r1)
+    x2_tilde = (x2 + 1.0) * jnp.exp(-delta1 * t) * jnp.power(t, 1.0 - r2)
 
     log_rate = -0.691 * jnp.log(x1_tilde) + 2.973 * jnp.log(delta1 * t + eps)
     rate = jnp.exp(log_rate)
@@ -129,7 +164,7 @@ def _lp2_case2(
         x2 > 0,
         p2_temp
         - jstats.gamma.cdf(
-            x2 * jnp.exp(-delta1 * t) * jnp.power(t, 1 - r2),
+            x2 * jnp.exp(-delta1 * t) * jnp.power(t, 1.0 - r2),
             a=nu2 / r1 * x1_tilde * rate,
             scale=1 / rate,
         ),
@@ -226,7 +261,7 @@ def _lp2_case3(
     r1 = par1["r"]
     delta2 = par2["delta"]
     r2 = par2["r"]
-    x1_tilde = (x1 + 1) * jnp.exp(-delta1 * t) * jnp.power(t, 1 - r1)
+    x1_tilde = (x1 + 1.0) * jnp.exp(-delta1 * t) * jnp.power(t, 1.0 - r1)
 
     def lp_func(theta):
         return jnp.exp(-_h(theta, par1, par2) * x1_tilde) / theta
@@ -235,10 +270,12 @@ def _lp2_case3(
         fp = jax.vmap(lp_func)(BETA_VEC / theta)
         return jnp.dot(ETA_VEC, fp).real / theta
 
-    p2_temp = ilp((x2 + 1) * jnp.exp(-delta2 * t) * jnp.power(t, 1 - r2))
+    p2_temp = ilp((x2 + 1.0) * jnp.exp(-delta2 * t) * jnp.power(t, 1.0 - r2))
 
     p2 = jnp.where(
-        x2 > 0, p2_temp - ilp(x2 * jnp.exp(-delta2 * t) * jnp.power(t, 1 - r2)), p2_temp
+        x2 > 0,
+        p2_temp - ilp(x2 * jnp.exp(-delta2 * t) * jnp.power(t, 1.0 - r2)),
+        p2_temp,
     )
 
     p2 = jnp.max(jnp.array([p2, 0.0]))
@@ -325,7 +362,7 @@ def jlogp_one_node(x: jnp.ndarray, t: jnp.ndarray, par: dict, eps: float = 1e-16
     )
     lp = jnp.log(lp + eps)
 
-    x_tilde = (x + 1) * jnp.exp(-par["delta"] * t) * jnp.power(t, 1 - par["r"])
+    x_tilde = (x + 1.0) * jnp.exp(-par["delta"] * t) * jnp.power(t, 1.0 - par["r"])
 
     lt = -_q_tilde(t, par["C_s"], par["r"], par["delta"]) * x_tilde
 
@@ -372,7 +409,7 @@ def jlogp_two_nodes(
         eps,
     )
 
-    x2_tilde = (x2 + 1) * jnp.exp(-par2["delta"] * t) * jnp.power(t, 1 - par2["r"])
+    x2_tilde = (x2 + 1.0) * jnp.exp(-par2["delta"] * t) * jnp.power(t, 1.0 - par2["r"])
     lt = -_q_tilde(t, par2["C_s"], par2["r"], par2["delta"]) * x2_tilde
 
     return lp + lt
