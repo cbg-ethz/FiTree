@@ -9,7 +9,7 @@ def construct_square_matrix(n: int, diag, offdiag):
 
     Args:
         n: size of the matrix
-        diagonal: vector of shape (n,) containing the diagonal elements
+        diag: vector of shape (n,) containing the diagonal elements
         offdiag: vector of shape (n*(n-1)//2,) containing the upper-triangular
         off-diagonal elements
 
@@ -93,9 +93,7 @@ def prior_normal(
         )
         pm.Deterministic(
             "fitness_matrix",
-            pt.exp(
-                construct_square_matrix(n_mutations, diagonal=diag, offdiag=offdiag)
-            ),
+            pt.exp(construct_square_matrix(n_mutations, diag=diag, offdiag=offdiag)),
         )
     return model
 
@@ -138,9 +136,7 @@ def prior_horseshoe(
         # Construct the theta matrix
         pm.Deterministic(
             "fitness_matrix",
-            pt.exp(
-                construct_square_matrix(n_mutations, diagonal=diag, offdiag=offdiag)
-            ),
+            pt.exp(construct_square_matrix(n_mutations, diag=diag, offdiag=offdiag)),
         )
 
     return model
@@ -219,7 +215,7 @@ def prior_regularized_horseshoe(
         # Construct the theta matrix
         pm.Deterministic(
             "fitness_matrix",
-            pt.exp(construct_square_matrix(n_mutations, diagonal=diag, offdiag=betas)),
+            pt.exp(construct_square_matrix(n_mutations, diag=diag, offdiag=betas)),
         )
 
     return model
@@ -278,9 +274,7 @@ def prior_offdiagonal_laplace(
         )
         pm.Deterministic(
             "fitness_matrix",
-            pt.exp(
-                construct_square_matrix(n_mutations, diagonal=diag, offdiag=laplaces)
-            ),
+            pt.exp(construct_square_matrix(n_mutations, diag=diag, offdiag=laplaces)),
         )
 
     return model
@@ -338,9 +332,7 @@ def prior_spike_and_slab_marginalized(
         pm.Deterministic(
             "fitness_matrix",
             pt.exp(
-                construct_square_matrix(
-                    n_mutations, diagonal=diag, offdiag=offdiag_entries
-                )
+                construct_square_matrix(n_mutations, diag=diag, offdiag=offdiag_entries)
             ),
         )
 
