@@ -479,3 +479,70 @@ def unnormalized_joint_logp(trees: VectorizedTrees, eps: float = 1e-16) -> jnp.n
     )(trees, eps)
 
     return jnp.dot(trees.weight, jlogp)
+
+
+@jax.jit
+def _g(theta: jnp.ndarray, tree: VectorizedTrees, i: int, tau: float = 0.01):
+    def cond_fun(val):
+        i, pa_i, g = val
+
+        return pa_i > -1
+
+    def body_fun(val):
+        i, pa_i, g = val
+
+        par_pa, par_i = get_pars(tree, i)
+
+        g = _h(g, par_pa, par_i)
+
+        return pa_i, tree.parent_id[pa_i], g
+
+    mrca, _, g = jax.lax.while_loop(cond_fun, body_fun, (i, tree.parent_id[i], theta))
+
+    lam = tree.lam[mrca]
+    rho = tree.rho[mrca]
+    phi = tree.phi[mrca]
+    C_0 = tree.C_0
+    t = tree.sampling_time
+
+    return jax.lax.cond(
+        lam < 0.0,
+        lambda: jnp.power(
+            phi + (1 - phi) * jnp.exp(-g * tau / t), -rho * C_0 * t / tau
+        ),
+        lambda: jnp.power(1 + phi * g, -rho * C_0),
+    )
+
+
+@jax.jit
+def mlogp_one_node(
+    tree: VectorizedTrees,
+    i: int,
+    tau: float = 0.01,
+    eps: float = 1e-16,
+    pdf: bool = False,
+):
+    i = i
+    x = tree.cell_number[i]
+    t = tree.sampling_time
+    x_tilde = (x + 1.0) * jnp.exp(-tree.delta[i] * t) * jnp.power(t, 1.0 - tree.r[i])
+
+    def lp_func(theta):
+        g = _g(theta, tree, i, tau)
+        return g / theta
+
+    def ilp(theta):
+        fp = jax.vmap(lp_func)(BETA_VEC / theta)
+        return jnp.dot(ETA_VEC, fp).real / theta
+
+    mlogp = ilp(x_tilde)
+
+    mlogp = jnp.where(
+        pdf & (x > 0.0),
+        mlogp - ilp(x * jnp.exp(-tree.delta[i] * t) * jnp.power(t, 1.0 - tree.r[i])),
+        mlogp,
+    )
+
+    mlogp = jnp.log(mlogp + eps)
+
+    return mlogp

@@ -98,6 +98,8 @@ def wrap_trees(trees: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
             cell_number[i, idx] = node.cell_number
             if node.cell_number > trees.C_min:
                 observed[i, idx] = 1
+            else:
+                cell_number[i, idx] = trees.C_min
 
     node_id = np.arange(n_nodes)
     parent_id = np.zeros(n_nodes, dtype=np.int32)
