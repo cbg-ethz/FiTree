@@ -4,12 +4,14 @@ import numpy as np
 from anytree import PreOrderIter
 
 from fitree._trees import TumorTreeCohort, TumorTree, Subclone
+from fitree._simulation._utils import _expand_tree
 
 
 class VectorizedTrees(NamedTuple):
     # All trees are stored in array format for vectorized computation in JAX
 
     cell_number: jax.Array | np.ndarray  # (N_trees, n_nodes)
+    observed: jax.Array | np.ndarray  # (N_trees, n_nodes)
     sampling_time: jax.Array | np.ndarray  # (N_trees,)
     weight: jax.Array | np.ndarray  # (N_trees,)
 
@@ -29,6 +31,7 @@ class VectorizedTrees(NamedTuple):
     beta: jax.Array | np.ndarray  # scalar: common death rate
     C_s: jax.Array | np.ndarray  # scalar: sampling scale
     C_0: jax.Array | np.ndarray  # scalar: root size
+    C_min: jax.Array | np.ndarray  # scalar: minimum detectable size
 
 
 def wrap_trees(trees: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
@@ -37,6 +40,19 @@ def wrap_trees(trees: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
     The VectorizedTrees is for the computation of the unnormalized likelihood,
     and the union TumorTree is for the normalizing constant.
     """
+
+    # 0. Expand all trees
+    F_mat = np.ones((trees.n_mutations, trees.n_mutations))
+    mu_vec = trees.mu_vec
+    for tree in trees.trees:
+        tree.root = _expand_tree(
+            tree=tree.root,
+            n_mutations=trees.n_mutations,
+            mu_vec=mu_vec,
+            F_mat=F_mat,
+            common_beta=trees.common_beta,
+            rule="parallel",
+        )
 
     # 1. Create the union tree
     union_root = Subclone(node_id=0, mutation_ids=[], cell_number=trees.C_0)
@@ -66,6 +82,7 @@ def wrap_trees(trees: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
     N_trees = trees.N_trees
     n_nodes = union_root.size - 1
     cell_number = np.zeros((N_trees, n_nodes))
+    observed = np.zeros((N_trees, n_nodes))
     sampling_time = np.zeros(N_trees)
     weight = np.zeros(N_trees)
 
@@ -79,6 +96,8 @@ def wrap_trees(trees: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
         for node in node_iter:
             idx = node_dict[node.node_path].node_id - 1
             cell_number[i, idx] = node.cell_number
+            if node.cell_number > trees.C_min:
+                observed[i, idx] = 1
 
     node_id = np.arange(n_nodes)
     parent_id = np.zeros(n_nodes, dtype=np.int32)
@@ -90,6 +109,7 @@ def wrap_trees(trees: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
 
     vec_trees = VectorizedTrees(
         cell_number=cell_number,
+        observed=observed,
         sampling_time=sampling_time,
         weight=weight,
         node_id=node_id,
@@ -107,11 +127,10 @@ def wrap_trees(trees: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
         beta=trees.common_beta,
         C_s=trees.C_sampling,
         C_0=trees.C_0,
+        C_min=trees.C_min,
     )
 
     # 3. Update the growth parameters of the trees
-    F_mat = np.ones((trees.n_mutations, trees.n_mutations))
-    mu_vec = trees.mu_vec
     vec_trees, union_tree = update_params(
         vec_trees, union_tree, F_mat, mu_vec, trees.common_beta
     )

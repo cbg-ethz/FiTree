@@ -42,14 +42,22 @@ cohort = TumorTreeCohort(
 	patient_labels={i: "P" + str(i) for i in range(2)},
 )
 
+F_mat = np.ones((cohort.n_mutations, cohort.n_mutations))
+mu_vec = cohort.mu_vec
+common_beta = cohort.common_beta
+
+for tree in cohort.trees:
+	for node in PreOrderIter(tree.root):
+		node.get_growth_params(mu_vec=mu_vec, F_mat=F_mat, common_beta=common_beta)
+
 vec_trees, union_tree = wrap_trees(cohort)
 
 union_node_paths = [node.node_path for node in PreOrderIter(union_tree.root)]
 
 def test_wrap_trees():
 
-	assert union_tree.root.size == 9
-	assert vec_trees.cell_number.shape == (2, 8)
+	assert union_tree.root.size == 39
+	assert vec_trees.cell_number.shape == (2, 38)
 	assert vec_trees.sampling_time[0] == 5.0
 	assert vec_trees.sampling_time[1] == 10.0
 	assert vec_trees.weight[0] == 1.0
@@ -57,7 +65,7 @@ def test_wrap_trees():
 	assert vec_trees.beta == 1.0
 	assert vec_trees.C_s == 1e8
 	assert vec_trees.C_0 == 1e5
-	assert vec_trees.n_nodes == 8
+	assert vec_trees.n_nodes == 38
 	assert vec_trees.N_trees == 2
 
 	for node in PreOrderIter(tree1.root):

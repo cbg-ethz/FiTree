@@ -453,24 +453,26 @@ def unnormalized_joint_logp(trees: VectorizedTrees, eps: float = 1e-16) -> jnp.n
         jlogp_one_tree,
         in_axes=(
             VectorizedTrees(
-                0,
-                0,
-                0,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
+                0,  # cell_number
+                0,  # observed
+                0,  # sampling_time
+                0,  # weight
+                None,  # node_id
+                None,  # parent_id
+                None,  # alpha
+                None,  # nu
+                None,  # lam
+                None,  # rho
+                None,  # phi
+                None,  # delta
+                None,  # r
+                None,  # gamma
+                None,  # N_trees
+                None,  # n_nodes
+                None,  # beta
+                None,  # C_s
+                None,  # C_0
+                None,  # C_min
             ),
             None,
         ),
