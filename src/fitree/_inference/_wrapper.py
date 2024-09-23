@@ -82,7 +82,7 @@ def wrap_trees(trees: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
     N_trees = trees.N_trees
     n_nodes = union_root.size - 1
     cell_number = np.zeros((N_trees, n_nodes))
-    observed = np.zeros((N_trees, n_nodes))
+    observed = np.zeros((N_trees, n_nodes), dtype=bool)
     sampling_time = np.zeros(N_trees)
     weight = np.zeros(N_trees)
 
@@ -97,7 +97,7 @@ def wrap_trees(trees: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
             idx = node_dict[node.node_path].node_id - 1
             cell_number[i, idx] = node.cell_number
             if node.cell_number > trees.C_min:
-                observed[i, idx] = 1
+                observed[i, idx] = True
             else:
                 cell_number[i, idx] = trees.C_min
 
