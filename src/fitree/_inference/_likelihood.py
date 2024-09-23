@@ -413,71 +413,68 @@ def get_pars(tree: VectorizedTrees, i: int):
 
 
 @jax.jit
-def jlogp_one_node(x: jnp.ndarray, t: jnp.ndarray, par: dict, eps: float = 1e-16):
+def jlogp_no_parent(tree: VectorizedTrees, i: int, eps: float = 1e-16):
     """This function computes the log-likelihood of a subclone
-    if its parent is the root. (See Lemma 1 and Theorem 1 in the supplement)
+    if its parent is the root, i.e. no parent.
+    (See Lemma 1 and Theorem 1 in the supplement)
 
     It also computes part of the log-likelihood of the sampling time
     given the subclone. (See Theorem 3 in the supplement)
 
     Args:
-        x : jnp.ndarray
-            The number of cells in the subclone.
-        t : jnp.ndarray
-            The sampling time.
-        par : dict
-            The growth parameters of the subclone.
+        tree : VectorizedTrees
+            The tree object.
+        i : int
+            The index of the node in the tree.
+        eps : float, optional
+            The machine epsilon. Defaults to 1e-16.
     """
 
+    x = tree.cell_number[i]
+    t = tree.sampling_time
+
     lp = jax.lax.cond(
-        par["observed"],
+        tree.observed[i],
         lambda: jstats.nbinom.pmf(
             k=x,
-            n=par["C_0"] * par["rho"],
-            p=_pt(par["alpha"], par["beta"], par["lam"], t),
+            n=tree.C_0 * tree.rho[i],
+            p=_pt(tree.alpha[i], tree.beta, tree.lam[i], t),
         ),
         lambda: jss.betainc(
-            a=par["C_0"] * par["rho"],
+            a=tree.C_0 * tree.rho[i],
             b=x + 1.0,
-            x=_pt(par["alpha"], par["beta"], par["lam"], t),
+            x=_pt(tree.alpha[i], tree.beta, tree.lam[i], t),
         ),
     )
 
     lp = jnp.log(lp + eps)
 
-    x_tilde = (x + 1.0) * jnp.exp(-par["delta"] * t) * jnp.power(t, 1.0 - par["r"])
+    x_tilde = x * jnp.exp(-tree.delta[i] * t) * jnp.power(t, 1.0 - tree.r[i])
 
-    lt = -_q_tilde(t, par["C_s"], par["r"], par["delta"]) * x_tilde
+    lt = -_q_tilde(t, tree.C_s, tree.r[i], tree.delta[i]) * x_tilde
 
     return lp + lt
 
 
 @jax.jit
-def jlogp_two_nodes(
-    x1: jnp.ndarray,
-    x2: jnp.ndarray,
-    t: jnp.ndarray,
-    par1: dict,
-    par2: dict,
-    eps: float = 1e-16,
-):
+def jlogp_w_parent(tree: VectorizedTrees, i: int, eps: float = 1e-16):
     """This function computes the log-likelihood of a subclone
-    given its parent. (See Theorem 2 in the supplement)
+    given its parent (See Theorem 2 in the supplement)
 
     Args:
-        x1 : jnp.ndarray
-            The number of cells in the parent subclone.
-        x2 : jnp.ndarray
-            The number of cells in the subclone.
-        t : jnp.ndarray
-            The sampling time.
-        par1 : dict
-            The growth parameters of the parent subclone.
-        par2 : dict
-            The growth parameters of the subclone.
+        tree : VectorizedTrees
+            The tree object.
+        i : int
+            The index of the node in the tree.
         eps : float, optional
             The machine epsilon. Defaults to 1e-16.
     """
+
+    x1 = tree.cell_number[tree.parent_id[i]]
+    x2 = tree.cell_number[i]
+    t = tree.sampling_time
+
+    par1, par2 = get_pars(tree, i)
 
     lam_diff = par2["lam"] - par1["delta"]
 
@@ -493,32 +490,30 @@ def jlogp_two_nodes(
         True,
     )
 
-    x2_tilde = (x2 + 1.0) * jnp.exp(-par2["delta"] * t) * jnp.power(t, 1.0 - par2["r"])
+    x2_tilde = x2 * jnp.exp(-par2["delta"] * t) * jnp.power(t, 1.0 - par2["r"])
     lt = -_q_tilde(t, par2["C_s"], par2["r"], par2["delta"]) * x2_tilde
 
     return lp + lt
 
 
 @jax.jit
+def jlogp_one_node(tree: VectorizedTrees, i: int, eps: float = 1e-16):
+    return jax.lax.cond(
+        tree.parent_id[i] == -1,
+        lambda: jlogp_no_parent(tree, i, eps),
+        lambda: jlogp_w_parent(tree, i, eps),
+    )
+
+
+@jax.jit
 def jlogp_one_tree(tree: VectorizedTrees, eps: float = 1e-16):
     """This function computes the log-likelihood of a tree"""
 
-    jlogp = jax.lax.fori_loop(
-        0,
-        tree.n_nodes,
-        lambda i, jlogp: jlogp
-        + jax.lax.cond(
-            tree.parent_id[i] == -1,  # if the parent is the root
-            lambda x1, x2, t, par1, par2, eps: jlogp_one_node(x2, t, par2, eps),
-            jlogp_two_nodes,
-            tree.cell_number[tree.parent_id[i]],
-            tree.cell_number[i],
-            tree.sampling_time,
-            *get_pars(tree, i),
-            eps
-        ),
-        0.0,
-    )
+    def scan_fun(jlogp, i):
+        new_jlogp = jlogp_one_node(tree, i, eps) + jlogp
+        return new_jlogp, new_jlogp
+
+    jlogp, _ = jax.lax.scan(scan_fun, 0.0, tree.node_id)
 
     jlogp += jnp.log(jnp.sum(tree.cell_number) + eps) - jnp.log(tree.C_s)
 
