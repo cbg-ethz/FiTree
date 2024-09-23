@@ -2,7 +2,7 @@ import jax
 import numpy as np
 
 from fitree._inference._wrapper import VectorizedTrees
-from fitree._inference._likelihood import mlogp_one_node
+from fitree._inference._likelihood import _mlogp
 
 tol = 1e-3
 C_0 = 1e5
@@ -57,7 +57,7 @@ def test_mlogp_one_node():
 	)
 
 	actual_output = jax.vmap(
-        mlogp_one_node,
+        _mlogp,
         in_axes=(
             VectorizedTrees(
                 0,  # cell_number
@@ -83,8 +83,10 @@ def test_mlogp_one_node():
             ),
             None,
 			None,
+            None,
+            None,
         ),
-    )(vec_trees, 1, 0.01)
+    )(vec_trees, 1, 0.01, 1e-16, False)
 
 	assert np.allclose(actual_output, np.log(1.0 - expected_output), atol=tol)
 	
