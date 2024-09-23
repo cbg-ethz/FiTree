@@ -333,12 +333,13 @@ def _g(theta: jnp.ndarray, tree: VectorizedTrees, i: int, tau: float = 0.01):
 def _mlogp(
     tree: VectorizedTrees,
     i: int,
+    x: float = jnp.inf,
     eps: float = 1e-16,
     pdf: bool = True,
     tau: float = 0.01,
 ):
     i = i
-    x = tree.cell_number[i]
+    x = jax.lax.cond(x > tree.cell_number[i], lambda: tree.cell_number[i], lambda: x)
     t = tree.sampling_time
     x_tilde = (x + 1.0) * jnp.exp(-tree.delta[i] * t) * jnp.power(t, 1.0 - tree.r[i])
 

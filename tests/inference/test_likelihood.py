@@ -82,11 +82,12 @@ def test_mlogp_one_node():
                 None,  # C_min
             ),
             None,
+            None,
 			None,
             None,
             None,
         ),
-    )(vec_trees, 1, 1e-16, False, 0.01)
+    )(vec_trees, 1, np.inf, 1e-16, False, 0.01)
 
 	assert np.allclose(actual_output, np.log(1.0 - expected_output), atol=tol)
 	
