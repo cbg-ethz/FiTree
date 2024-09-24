@@ -4,7 +4,6 @@ import numpy as np
 from anytree import PreOrderIter
 
 from fitree._trees import TumorTreeCohort, TumorTree, Subclone
-from fitree._simulation._utils import _expand_tree
 
 
 class VectorizedTrees(NamedTuple):
@@ -34,6 +33,48 @@ class VectorizedTrees(NamedTuple):
     C_min: jax.Array | np.ndarray  # scalar: minimum detectable size
 
 
+def get_possible_mutations(node: Subclone, n_mutations: int) -> set[int]:
+    """This function returns a set of all mutations of the given node,
+    as well as its parent and children.
+    """
+    mutations = node.get_genotype()
+    for child in node.children:
+        mutations.update(child.mutation_ids)
+
+    return set(range(n_mutations)).difference(mutations)
+
+
+def get_augmented_tree(
+    tree: Subclone,
+    n_mutations: int,
+    mu_vec: np.ndarray,
+    F_mat: np.ndarray,
+    common_beta: float = 0.8,
+    rule: str = "parallel",
+    k_repeat: int = 0,
+    k_multiple: int = 1,
+) -> Subclone:
+    if rule == "parallel":
+        all_nodes = list(PreOrderIter(tree))
+        for node in all_nodes:
+            possible_mutations = get_possible_mutations(node, n_mutations)
+            for j in possible_mutations:
+                new_node = Subclone(
+                    node_id=tree.size,
+                    mutation_ids=[j],
+                    cell_number=0,
+                    parent=node,
+                )
+                new_node.get_growth_params(
+                    mu_vec=mu_vec, F_mat=F_mat, common_beta=common_beta
+                )
+    else:
+        raise NotImplementedError
+        # TODO: implement other rules
+
+    return tree
+
+
 def wrap_trees(trees: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
     """This function takes a TumorTreeCohort object as input
     and returns a VectorizedTrees object and a union TumorTree.
@@ -45,7 +86,7 @@ def wrap_trees(trees: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
     F_mat = np.ones((trees.n_mutations, trees.n_mutations))
     mu_vec = trees.mu_vec
     for tree in trees.trees:
-        tree.root = _expand_tree(
+        tree.root = get_augmented_tree(
             tree=tree.root,
             n_mutations=trees.n_mutations,
             mu_vec=mu_vec,
@@ -81,7 +122,7 @@ def wrap_trees(trees: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
     # 2. Create the vectorized trees
     N_trees = trees.N_trees
     n_nodes = union_root.size - 1
-    cell_number = np.zeros((N_trees, n_nodes))
+    cell_number = np.ones((N_trees, n_nodes)) * trees.C_min
     observed = np.zeros((N_trees, n_nodes), dtype=bool)
     sampling_time = np.zeros(N_trees)
     weight = np.zeros(N_trees)
@@ -95,11 +136,9 @@ def wrap_trees(trees: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
         next(node_iter)  # skip the root
         for node in node_iter:
             idx = node_dict[node.node_path].node_id - 1
-            cell_number[i, idx] = node.cell_number
             if node.cell_number > trees.C_min:
                 observed[i, idx] = True
-            else:
-                cell_number[i, idx] = trees.C_min
+                cell_number[i, idx] = node.cell_number
 
     node_id = np.arange(n_nodes)
     parent_id = np.zeros(n_nodes, dtype=np.int32)
