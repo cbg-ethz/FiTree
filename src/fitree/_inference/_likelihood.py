@@ -338,30 +338,61 @@ def _mlogp(
     pdf: bool = True,
     tau: float = 0.01,
 ):
-    i = i
     x = jax.lax.cond(x > tree.cell_number[i], lambda: tree.cell_number[i], lambda: x)
     t = tree.sampling_time
-    x_tilde = (x + 1.0) * jnp.exp(-tree.delta[i] * t) * jnp.power(t, 1.0 - tree.r[i])
 
-    def lp_func(theta):
-        g = _g(theta, tree, i, tau)
-        return g / theta
+    def mlogp_1():
+        # nodes directly following the root use exact solution
+        mlogp = jax.lax.cond(
+            pdf,
+            lambda: jstats.nbinom.pmf(
+                k=x,
+                n=tree.C_0 * tree.rho[i],
+                p=_pt(tree.alpha[i], tree.beta, tree.lam[i], t),
+            ),
+            lambda: jss.betainc(
+                a=tree.C_0 * tree.rho[i],
+                b=x + 1.0,
+                x=_pt(tree.alpha[i], tree.beta, tree.lam[i], t),
+            ),
+        )
 
-    def ilp(theta):
-        fp = jax.vmap(lp_func)(BETA_VEC / theta)
-        return jnp.dot(ETA_VEC, fp).real / theta
+        mlogp = jnp.log(mlogp + eps)
 
-    mlogp = ilp(x_tilde)
+        return mlogp
 
-    mlogp = jnp.where(
-        pdf & (x > 0.0),
-        mlogp - ilp(x * jnp.exp(-tree.delta[i] * t) * jnp.power(t, 1.0 - tree.r[i])),
-        mlogp,
+    def mlogp_2():
+        # nodes with parents use the laplace transform
+        x_tilde = (
+            (x + 1.0) * jnp.exp(-tree.delta[i] * t) * jnp.power(t, 1.0 - tree.r[i])
+        )
+
+        def lp_func(theta):
+            g = _g(theta, tree, i, tau)
+            return g / theta
+
+        def ilp(theta):
+            fp = jax.vmap(lp_func)(BETA_VEC / theta)
+            return jnp.dot(ETA_VEC, fp).real / theta
+
+        mlogp = ilp(x_tilde)
+
+        mlogp = jnp.where(
+            pdf & (x > 0.0),
+            mlogp
+            - ilp(x * jnp.exp(-tree.delta[i] * t) * jnp.power(t, 1.0 - tree.r[i])),
+            mlogp,
+        )
+
+        mlogp = jnp.log(mlogp + eps)
+
+        return mlogp
+
+    return jax.lax.cond(
+        tree.parent_id[i] == -1,
+        mlogp_1,
+        mlogp_2,
     )
-
-    mlogp = jnp.log(mlogp + eps)
-
-    return mlogp
 
 
 def get_pars(tree: VectorizedTrees, i: int):
