@@ -2,6 +2,7 @@ import jax
 import jax.numpy as jnp
 import jax.scipy.stats as jstats
 import jax.scipy.special as jss
+from jax.scipy.integrate import trapezoid
 
 from ._utils import ETA_VEC, BETA_VEC, polylog, integrate
 from ._wrapper import VectorizedTrees
@@ -384,6 +385,8 @@ def _mlogp(
             mlogp,
         )
 
+        mlogp = jnp.max(jnp.array([mlogp, 0.0]))
+
         mlogp = jnp.log(mlogp + eps)
 
         return mlogp
@@ -489,9 +492,10 @@ def jlogp_no_parent(tree: VectorizedTrees, i: int, eps: float = 1e-16):
 
 
 @jax.jit
-def jlogp_w_parent(tree: VectorizedTrees, i: int, eps: float = 1e-16):
+def jlogp_w_parent_case1(tree: VectorizedTrees, i: int, eps: float = 1e-16):
     """This function computes the log-likelihood of a subclone
-    given its parent (See Theorem 2 in the supplement)
+    given its parent for the case when both are observed:
+        P(C_v(t) = c_v(t) | C_pa(t) = c_pa(t))
 
     Args:
         tree : VectorizedTrees
@@ -522,8 +526,209 @@ def jlogp_w_parent(tree: VectorizedTrees, i: int, eps: float = 1e-16):
         True,
     )
 
-    x2_tilde = x2 * jnp.exp(-par2["delta"] * t) * jnp.power(t, 1.0 - par2["r"])
-    lt = -_q_tilde(t, par2["C_s"], par2["r"], par2["delta"]) * x2_tilde
+    return lp
+
+
+@jax.jit
+def jlogp_w_parent_case2(tree: VectorizedTrees, i: int, eps: float = 1e-16):
+    """This function computes the log-likelihood of a subclone
+    given its parent for the case when the parent is observed
+    but the child is unobserved:
+        P(C_v(t) <= c_v(t) | C_pa(t) = c_pa(t))
+
+    Args:
+        tree : VectorizedTrees
+            The tree object.
+        i : int
+            The index of the node in the tree.
+        eps : float, optional
+            The machine epsilon. Defaults to 1e-16.
+    """
+
+    x1 = tree.cell_number[tree.parent_id[i]]
+    x2 = tree.cell_number[i]
+    t = tree.sampling_time
+
+    par1, par2 = get_pars(tree, i)
+
+    lam_diff = par2["lam"] - par1["delta"]
+
+    lp = jax.lax.switch(
+        (jnp.sign(lam_diff) + 1).astype(jnp.int32),
+        [_lp2_case1, _lp2_case2, _lp2_case3],
+        x1,
+        x2,
+        t,
+        par1,
+        par2,
+        eps,
+        False,
+    )
+
+    return lp
+
+
+@jax.jit
+def jlogp_w_parent_case3(tree: VectorizedTrees, i: int, eps: float = 1e-16):
+    """This function computes the log-likelihood of a subclone
+    given its parent for the case when the parent is unobserved
+    but the child is observed:
+        P(C_v(t) = c_v(t) | C_pa(t) <= c_pa(t))
+
+    Args:
+        tree : VectorizedTrees
+            The tree object.
+        i : int
+            The index of the node in the tree.
+        eps : float, optional
+            The machine epsilon. Defaults to 1e-16.
+    """
+
+    pa_i = tree.parent_id[i]
+    x1 = tree.cell_number[pa_i]
+    x2 = tree.cell_number[i]
+    t = tree.sampling_time
+
+    par1, par2 = get_pars(tree, i)
+
+    lam_diff = par2["lam"] - par1["delta"]
+
+    def _lp2_func(_x1):
+        return jax.lax.switch(
+            (jnp.sign(lam_diff) + 1).astype(jnp.int32),
+            [_lp2_case1, _lp2_case2, _lp2_case3],
+            _x1,
+            x2,
+            t,
+            par1,
+            par2,
+            eps,
+            True,
+        ) + _mlogp(tree=tree, i=pa_i, x=_x1, eps=eps, pdf=True)
+
+    x1_vec = jnp.linspace(0, x1, 10)  # Crude numerical integration
+
+    lp2_vec = jax.vmap(_lp2_func)(x1_vec)
+
+    p2_vec = jnp.exp(lp2_vec)
+
+    log_num = jnp.log(trapezoid(p2_vec, x1_vec) + eps)
+
+    log_denom = _mlogp(tree=tree, i=pa_i, x=x1, eps=eps, pdf=False)
+
+    lp = log_num - log_denom
+
+    lp = jnp.min(jnp.array([lp, 0.0]))
+
+    return lp
+
+
+@jax.jit
+def jlogp_w_parent_case4(tree: VectorizedTrees, i: int, eps: float = 1e-16):
+    """This function computes the log-likelihood of a subclone
+    given its parent for the case when both are unobserved:
+        P(C_v(t) <= c_v(t) | C_pa(t) <= c_pa(t))
+
+    Args:
+        tree : VectorizedTrees
+            The tree object.
+        i : int
+            The index of the node in the tree.
+        eps : float, optional
+            The machine epsilon. Defaults to 1e-16.
+    """
+
+    pa_i = tree.parent_id[i]
+    x1 = tree.cell_number[pa_i]
+    x2 = tree.cell_number[i]
+    t = tree.sampling_time
+
+    par1, par2 = get_pars(tree, i)
+
+    lam_diff = par2["lam"] - par1["delta"]
+
+    def _lp2_func(_x1):
+        return jax.lax.switch(
+            (jnp.sign(lam_diff) + 1).astype(jnp.int32),
+            [_lp2_case1, _lp2_case2, _lp2_case3],
+            _x1,
+            x2,
+            t,
+            par1,
+            par2,
+            eps,
+            False,
+        ) + _mlogp(tree=tree, i=pa_i, x=_x1, eps=eps, pdf=True)
+
+    x1_vec = jnp.linspace(0, x1, 10)  # Crude numerical integration
+
+    lp2_vec = jax.vmap(_lp2_func)(x1_vec)
+
+    p2_vec = jnp.exp(lp2_vec)
+
+    log_num = jnp.log(trapezoid(p2_vec, x1_vec) + eps)
+
+    log_denom = _mlogp(tree=tree, i=pa_i, x=x1, eps=eps, pdf=False)
+
+    lp = log_num - log_denom
+
+    lp = jnp.min(jnp.array([lp, 0.0]))
+
+    return lp
+
+
+@jax.jit
+def jlogp_w_parent(tree: VectorizedTrees, i: int, eps: float = 1e-16):
+    """This function computes the log-likelihood of a subclone
+    given its parent (See Theorem 2 in the supplement)
+
+    Args:
+        tree : VectorizedTrees
+            The tree object.
+        i : int
+            The index of the node in the tree.
+        eps : float, optional
+            The machine epsilon. Defaults to 1e-16.
+    """
+
+    # We need to consider the following four cases:
+    # 1. Both nodes are observed.
+    # 2. The parent is observed, but the child is unobserved.
+    # 3. The parent is unobserved, but the child is observed.
+    # 4. Both nodes are unobserved.
+
+    index = jax.lax.cond(
+        tree.observed[tree.parent_id[i]],
+        lambda: jax.lax.cond(
+            tree.observed[i],
+            lambda: 0,
+            lambda: 1,
+        ),
+        lambda: jax.lax.cond(
+            tree.observed[i],
+            lambda: 2,
+            lambda: 3,
+        ),
+    )
+
+    lp = jax.lax.switch(
+        index,
+        [
+            jlogp_w_parent_case1,
+            jlogp_w_parent_case2,
+            jlogp_w_parent_case3,
+            jlogp_w_parent_case4,
+        ],
+        tree,
+        i,
+        eps,
+    )
+
+    x2 = tree.cell_number[i]
+    t = tree.sampling_time
+
+    x2_tilde = x2 * jnp.exp(-tree.delta[i] * t) * jnp.power(t, 1.0 - tree.r[i])
+    lt = -_q_tilde(t, tree.C_s, tree.r[i], tree.delta[i]) * x2_tilde
 
     return lp + lt
 
