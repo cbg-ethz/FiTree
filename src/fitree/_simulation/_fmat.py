@@ -53,4 +53,4 @@ def sample_spike_and_slab(
         loc=0.0, scale=offdiag_effect, size=n_mutations * (n_mutations - 1) // 2
     )
     offdiag = np.where(rng.uniform(size=offdiag.shape) < p_offdiag, offdiag, 0.0)
-    return np.exp(construct_matrix(n=n_mutations, diag=diag, offdiag=offdiag))
+    return construct_matrix(n=n_mutations, diag=diag, offdiag=offdiag)

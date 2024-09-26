@@ -31,13 +31,14 @@ def test_growth_params():
     v3 = Subclone(node_id=3, mutation_ids=[2, 4, 5], cell_number=25, parent=v1)
 
     mu_vec = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6])
-    F = np.ones((6, 6))
-    F[0, 2] = 1.2
-    F[2, 4] = 0.5
-    F[4, 5] = 0.3
+    F_mat = np.ones((6, 6))
+    F_mat[0, 2] = 1.2
+    F_mat[2, 4] = 0.5
+    F_mat[4, 5] = 0.3
+    F_mat = np.log(F_mat)
     common_beta = 1
 
-    gpar = root.get_growth_params(mu_vec, F, common_beta, True)
+    gpar = root.get_growth_params(mu_vec, F_mat, common_beta, True)
     assert gpar["nu"] == 0
     assert gpar["alpha"] == 1
     assert gpar["beta"] == 1
@@ -48,7 +49,7 @@ def test_growth_params():
     assert gpar["phi"] == 1
     assert gpar["gamma"] == 0
 
-    gpar = v1.get_growth_params(mu_vec, F, common_beta, True)
+    gpar = v1.get_growth_params(mu_vec, F_mat, common_beta, True)
     assert gpar["nu"] == 0.3
     assert gpar["alpha"] == 1.2
     assert gpar["beta"] == 1
@@ -59,7 +60,7 @@ def test_growth_params():
     assert gpar["phi"] == 1.2 / gpar["lam"]
     assert gpar["gamma"] == 0
 
-    gpar = v2.get_growth_params(mu_vec, F, common_beta, True)
+    gpar = v2.get_growth_params(mu_vec, F_mat, common_beta, True)
     assert gpar["nu"] == 0.4
     assert gpar["alpha"] == 1
     assert gpar["beta"] == 1
@@ -70,15 +71,15 @@ def test_growth_params():
     assert gpar["phi"] == 1
     assert gpar["gamma"] == 0
 
-    gpar = v3.get_growth_params(mu_vec, F, common_beta, True)
+    gpar = v3.get_growth_params(mu_vec, F_mat, common_beta, True)
     assert gpar["nu"] == 0.5 * 0.6
-    assert gpar["alpha"] == 1.2 * 0.5 * 0.3
+    assert np.isclose(gpar["alpha"], 1.2 * 0.5 * 0.3)
     assert gpar["beta"] == common_beta
-    assert gpar["lam"] == 1.2 * 0.5 * 0.3 - 1
+    assert np.isclose(gpar["lam"], 1.2 * 0.5 * 0.3 - 1)
     assert gpar["delta"] == 1.2 - 1
     assert gpar["r"] == 1
-    assert gpar["rho"] == 5 / 3
-    assert gpar["phi"] == 1 / 0.82
+    assert np.isclose(gpar["rho"], 5 / 3)
+    assert np.isclose(gpar["phi"], 1 / 0.82)
     assert gpar["gamma"] == 1
 
 

@@ -12,7 +12,7 @@ def test_get_augmented_tree():
 	v1 = Subclone(node_id=1, mutation_ids=[0], cell_number=50, parent=root)
 	v2 = Subclone(node_id=2, mutation_ids=[2], cell_number=50, parent=root)
 
-	F_mat = np.ones((3, 3))
+	F_mat = np.zeros((3, 3))
 	mu_vec = np.ones(3) * 1e-5
 	common_beta = 1.0
 
@@ -34,7 +34,7 @@ def test_get_augmented_tree():
 	v1 = Subclone(node_id=1, mutation_ids=[0], cell_number=50, parent=root)
 	v2 = Subclone(node_id=2, mutation_ids=[2], cell_number=50, parent=v1)
 
-	F_mat = np.ones((3, 3))
+	F_mat = np.zeros((3, 3))
 	mu_vec = np.ones(3) * 1e-5
 	common_beta = 1.0
 
@@ -94,7 +94,7 @@ def test_wrap_trees():
 		patient_labels={i: "P" + str(i) for i in range(2)},
 	)
 
-	F_mat = np.ones((cohort.n_mutations, cohort.n_mutations))
+	F_mat = np.zeros((cohort.n_mutations, cohort.n_mutations))
 	mu_vec = cohort.mu_vec
 	common_beta = cohort.common_beta
 

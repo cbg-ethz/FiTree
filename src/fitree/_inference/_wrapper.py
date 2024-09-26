@@ -83,7 +83,7 @@ def wrap_trees(trees: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
     """
 
     # 0. Expand all trees
-    F_mat = np.ones((trees.n_mutations, trees.n_mutations))
+    F_mat = np.zeros((trees.n_mutations, trees.n_mutations))
     mu_vec = trees.mu_vec
     for tree in trees.trees:
         tree.root = get_augmented_tree(

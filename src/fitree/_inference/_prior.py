@@ -53,7 +53,7 @@ def prior_only_diagonal(
             size=(n_mutations,),
         )
         mask = pt.eye(n_mutations)
-        pm.Deterministic("fitness_matrix", pt.exp(mask * diag))  # type: ignore
+        pm.Deterministic("fitness_matrix", mask * diag)  # type: ignore
     return model
 
 
@@ -93,7 +93,7 @@ def prior_normal(
         )
         pm.Deterministic(
             "fitness_matrix",
-            pt.exp(construct_square_matrix(n_mutations, diag=diag, offdiag=offdiag)),
+            construct_square_matrix(n_mutations, diag=diag, offdiag=offdiag),
         )
     return model
 
@@ -136,7 +136,7 @@ def prior_horseshoe(
         # Construct the theta matrix
         pm.Deterministic(
             "fitness_matrix",
-            pt.exp(construct_square_matrix(n_mutations, diag=diag, offdiag=offdiag)),
+            construct_square_matrix(n_mutations, diag=diag, offdiag=offdiag),
         )
 
     return model
@@ -215,7 +215,7 @@ def prior_regularized_horseshoe(
         # Construct the theta matrix
         pm.Deterministic(
             "fitness_matrix",
-            pt.exp(construct_square_matrix(n_mutations, diag=diag, offdiag=betas)),
+            construct_square_matrix(n_mutations, diag=diag, offdiag=betas),
         )
 
     return model
@@ -274,7 +274,7 @@ def prior_offdiagonal_laplace(
         )
         pm.Deterministic(
             "fitness_matrix",
-            pt.exp(construct_square_matrix(n_mutations, diag=diag, offdiag=laplaces)),
+            construct_square_matrix(n_mutations, diag=diag, offdiag=laplaces),
         )
 
     return model
@@ -331,9 +331,7 @@ def prior_spike_and_slab_marginalized(
 
         pm.Deterministic(
             "fitness_matrix",
-            pt.exp(
-                construct_square_matrix(n_mutations, diag=diag, offdiag=offdiag_entries)
-            ),
+            construct_square_matrix(n_mutations, diag=diag, offdiag=offdiag_entries),
         )
 
     return model

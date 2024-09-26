@@ -8,7 +8,7 @@ def plot_fmat(
 ) -> None:
     mutation_label_list = [mutation_labels[i] for i in range(F_mat.shape[1])]
 
-    F_mat = np.transpose(np.log(F_mat))
+    F_mat = np.transpose(F_mat)
 
     mask = np.triu(np.ones_like(F_mat, dtype=bool), k=1)
 
@@ -31,4 +31,4 @@ def plot_fmat(
         vmax=0.3,
     )
 
-    plt.title("Fitness matrix in log scale", fontsize=16)
+    plt.title("Fitness matrix F", fontsize=16)
