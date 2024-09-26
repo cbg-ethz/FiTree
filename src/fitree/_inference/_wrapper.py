@@ -32,8 +32,6 @@ class VectorizedTrees(NamedTuple):
     C_0: jax.Array | np.ndarray  # scalar: root size
     C_min: jax.Array | np.ndarray  # scalar: minimum detectable size
 
-    node_path: jax.Array | np.ndarray  # (n_nodes, maximum tree height)
-
 
 def get_possible_mutations(node: Subclone, n_mutations: int) -> set[int]:
     """This function returns a set of all mutations of the given node,
@@ -75,18 +73,6 @@ def get_augmented_tree(
         # TODO: implement other rules
 
     return tree
-
-
-def node_path_reverse_padded(node: Subclone, max_len: int) -> np.ndarray:
-    """This function returns the reverse node path of the given node
-    in a padded array.
-    """
-
-    path = [u.node_id for u in node.path]
-    path = path[1:]
-    path = path[::-1]
-    path = np.array(path + [path[-1]] * (max_len - len(path)), dtype=np.int32)
-    return path
 
 
 def wrap_trees(trees: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
@@ -156,13 +142,11 @@ def wrap_trees(trees: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
 
     node_id = np.arange(n_nodes)
     parent_id = np.zeros(n_nodes, dtype=np.int32)
-    node_path = np.zeros((n_nodes, union_root.height), dtype=np.int32)
     node_iter = PreOrderIter(union_root)
     next(node_iter)  # skip the root
     for node in node_iter:
         idx = node.node_id - 1
         parent_id[idx] = node.parent.node_id - 1
-        node_path[idx] = node_path_reverse_padded(node, union_root.height)
 
     vec_trees = VectorizedTrees(
         cell_number=cell_number,
@@ -185,7 +169,6 @@ def wrap_trees(trees: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
         C_s=trees.C_sampling,
         C_0=trees.C_0,
         C_min=trees.C_min,
-        node_path=node_path,
     )
 
     # 3. Update the growth parameters of the trees

@@ -54,7 +54,6 @@ def test_mlogp_1():
         C_s=1e9,
         C_0=C_0,
         C_min=1e3,
-        node_path=np.array([[0, 0], [1, 0]]),
     )
 
     actual_output = jax.vmap(
@@ -81,7 +80,6 @@ def test_mlogp_1():
                 None,  # C_s
                 None,  # C_0
                 None,  # C_min
-                None,  # node_path
             ),
             None,
             None,
@@ -139,7 +137,6 @@ def test_mlogp_2():
         C_s=1e9,
         C_0=C_0,
         C_min=1e3,
-        node_path=np.array([[0, 0], [1, 0]]),
     )
 
     actual_output = jax.vmap(
@@ -166,7 +163,6 @@ def test_mlogp_2():
                 None,  # C_s
                 None,  # C_0
                 None,  # C_min
-                None,  # node_path
             ),
             None,
             None,
