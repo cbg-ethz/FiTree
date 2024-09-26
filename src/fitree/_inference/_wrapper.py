@@ -24,6 +24,7 @@ class VectorizedTrees(NamedTuple):
     delta: jax.Array | np.ndarray  # (n_nodes,)
     r: jax.Array | np.ndarray  # (n_nodes,)
     gamma: jax.Array | np.ndarray  # (n_nodes,)
+    genotypes: jax.Array | np.ndarray  # (n_nodes, n_mutations)
 
     N_trees: jax.Array | np.ndarray  # scalar: number of observed trees
     n_nodes: jax.Array | np.ndarray  # scalar: number of union nodes (w/o root)
@@ -142,11 +143,13 @@ def wrap_trees(trees: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
 
     node_id = np.arange(n_nodes)
     parent_id = np.zeros(n_nodes, dtype=np.int32)
+    genotypes = np.zeros((n_nodes, trees.n_mutations), dtype=bool)
     node_iter = PreOrderIter(union_root)
     next(node_iter)  # skip the root
     for node in node_iter:
         idx = node.node_id - 1
         parent_id[idx] = node.parent.node_id - 1
+        genotypes[idx, list(node.genotype)] = True
 
     vec_trees = VectorizedTrees(
         cell_number=cell_number,
@@ -163,6 +166,7 @@ def wrap_trees(trees: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
         delta=np.zeros(n_nodes),
         r=np.zeros(n_nodes),
         gamma=np.zeros(n_nodes),
+        genotypes=genotypes,
         N_trees=N_trees,
         n_nodes=n_nodes,
         beta=trees.common_beta,
