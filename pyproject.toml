@@ -14,6 +14,7 @@ pymc = "^5.8.2"
 jax = "^0.4.31"
 joblib = "^1.4.2"
 seaborn = "^0.13.2"
+tensorflow-probability = "^0.24.0"
 
 
 [tool.poetry.group.dev.dependencies]

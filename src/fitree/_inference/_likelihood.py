@@ -2,6 +2,7 @@ import jax
 import jax.numpy as jnp
 import jax.scipy.stats as jstats
 import jax.scipy.special as jss
+from tensorflow_probability.substrates import jax as tfp
 
 from ._utils import ETA_VEC, BETA_VEC, polylog, integrate
 from ._wrapper import VectorizedTrees
@@ -352,7 +353,7 @@ def _mlogp(
                 n=tree.C_0 * tree.rho[i],
                 p=_pt(tree.alpha[i], tree.beta, tree.lam[i], t),
             ),
-            lambda: jss.betainc(
+            lambda: tfp.math.betainc(
                 a=tree.C_0 * tree.rho[i],
                 b=x + 1.0,
                 x=_pt(tree.alpha[i], tree.beta, tree.lam[i], t),
@@ -476,7 +477,7 @@ def jlogp_no_parent(tree: VectorizedTrees, i: int, eps: float = 1e-16):
             n=tree.C_0 * tree.rho[i],
             p=_pt(tree.alpha[i], tree.beta, tree.lam[i], t),
         ),
-        lambda: jss.betainc(
+        lambda: tfp.math.betainc(
             a=tree.C_0 * tree.rho[i],
             b=x + 1.0,
             x=_pt(tree.alpha[i], tree.beta, tree.lam[i], t),
