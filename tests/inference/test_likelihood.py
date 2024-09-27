@@ -54,6 +54,7 @@ def test_mlogp_1():
         C_s=1e9,
         C_0=C_0,
         C_min=1e3,
+        genotypes=np.array([[True, False], [True, True]]),
     )
 
     actual_output = jax.vmap(
@@ -80,6 +81,7 @@ def test_mlogp_1():
                 None,  # C_s
                 None,  # C_0
                 None,  # C_min
+                None,  # genotypes
             ),
             None,
             None,
@@ -137,6 +139,7 @@ def test_mlogp_2():
         C_s=1e9,
         C_0=C_0,
         C_min=1e3,
+        genotypes=np.array([[True, False], [True, True]]),
     )
 
     actual_output = jax.vmap(
@@ -163,6 +166,7 @@ def test_mlogp_2():
                 None,  # C_s
                 None,  # C_0
                 None,  # C_min
+                None,  # genotypes
             ),
             None,
             None,
