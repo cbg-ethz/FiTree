@@ -139,24 +139,46 @@ def polylog(n, z):
     return jax.lax.fori_loop(0, max_k + 1, body_fun, 0.0) * (-2.0)
 
 
+# @jax.jit
+# def polylog(n, z):
+#     """This function computes the approximation of the polylogarithm of order n at z
+#     for positive integers n and large negative z. The approximation is based on
+#     equation (11.1) in the technical report "The Computation of Polylogarithms" by
+#     Wood, David C. (1992)
+#     """
+
+#     max_k = jnp.floor(n / 2.0).astype(jnp.int32)
+#     ks = jnp.arange(10)
+#     mask = ks <= max_k
+
+#     def compute_term(k):
+#         return (
+#             altzeta(2.0 * k)
+#             * jnp.power(jnp.log(1 - z), n - 2.0 * k)
+#             / jss.gamma(n - 2.0 * k + 1.0)
+#         )
+
+#     terms = jax.vmap(compute_term)(ks)
+#     terms = jnp.where(mask, terms, 0.0)
+#     return jnp.sum(terms) * (-2.0)
+
+
 @jax.jit
 def integrate_by_parts(
     t: jnp.ndarray, rr: jnp.ndarray, delta: jnp.ndarray, integral: jnp.ndarray
 ):
     """Helper function for integrate function."""
 
-    def I1(t, rr, delta):
-        return (t, rr + 1.0, delta, (jnp.exp(delta * t) - 1.0) / delta)
+    def I1():
+        return (rr + 1.0, (jnp.exp(delta * t) - 1.0) / delta)
 
-    def I2(t, rr, delta):
+    def I2():
         return (
-            t,
             rr + 1.0,
-            delta,
             (jnp.power(t, rr) * jnp.exp(delta * t) - rr * integral) / delta,
         )
 
-    return jax.lax.cond(rr == 0.0, I1, I2, t, rr, delta)
+    return jax.lax.cond(rr == 0.0, I1, I2)
 
 
 @jax.jit
@@ -164,16 +186,47 @@ def integrate2(t: jnp.ndarray, r: jnp.ndarray, delta: jnp.ndarray):
     """Helper function for integrate function."""
 
     def cond_fun(val):
-        t, rr, delta, integral = val
+        rr, integral = val
         return rr <= r
 
     def body_fun(val):
-        t, rr, delta, integral = val
+        rr, integral = val
         return integrate_by_parts(t, rr, delta, integral)
 
-    _, _, _, integral = jax.lax.while_loop(cond_fun, body_fun, (t, 0.0, delta, 0.0))
+    _, integral = jax.lax.while_loop(cond_fun, body_fun, (0.0, 0.0))
 
     return integral
+
+
+# @jax.jit
+# def integrate_by_parts(
+#     t: jnp.ndarray, rr: jnp.ndarray, delta: jnp.ndarray, integral: jnp.ndarray
+# ):
+#     """Helper function for integrate function."""
+
+#     def I1():
+#         return (jnp.exp(delta * t) - 1.0) / delta
+
+#     def I2():
+#         return (jnp.power(t, rr) * jnp.exp(delta * t) - rr * integral) / delta
+
+#     return jax.lax.cond(rr == 0.0, I1, I2)
+
+
+# @jax.jit
+# def integrate2(t: jnp.ndarray, r: jnp.ndarray, delta: jnp.ndarray):
+#     """Helper function for integrate function."""
+
+#     rs = jnp.arange(10)
+#     mask = rs == r
+
+#     def scan_fun(integral, rr):
+#         integral = integrate_by_parts(t, rr, delta, integral)
+#         return integral, integral
+
+#     _, integral = jax.lax.scan(scan_fun, 0.0, rs)
+
+#     return jnp.select(mask, integral)
 
 
 @jax.jit
