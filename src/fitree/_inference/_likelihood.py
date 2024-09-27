@@ -686,7 +686,7 @@ def update_params(
         new_gamma_i = jnp.where(
             new_delta_i == 0.0,
             0.0,
-            trees.delta[pa_i] - new_delta_i,
+            trees.delta[pa_i] / new_delta_i,
         )
         trees_gamma = trees.gamma.at[i].set(new_gamma_i)
 
