@@ -21,36 +21,21 @@ def construct_matrix(n: int, diag: np.ndarray, offdiag: np.ndarray) -> np.ndarra
 def sample_spike_and_slab(
     rng,
     n_mutations: int,
-    diag_mean: float = 0.0,
-    diag_sigma: float = 1.0,
-    offdiag_effect: float = 1.0,
-    p_offdiag: float = 0.2,
+    mean: float = 0.0,
+    sigma: float = 0.2,
+    p_diag: float = 0.7,
+    p_offdiag: float = 0.3,
 ) -> np.ndarray:
-    """Samples a matrix using diagonal terms from a normal
-    distribution and offdiagonal terms sampled from spike and slab
-    distribution.
-    Author: Pawel Czyz
-    Source: https://github.com/cbg-ethz/pMHN/
-
-    Args:
-        rng: NumPy random number generator.
-        n_mutations: number of mutations.
-        diag_mean: mean of the normal distribution used to sample
-            diagonal terms.
-        diag_scale: standard deviation of the normal distribution
-            used to sample diagonal terms.
-        offdiag_effect: the standard deviation of the slab used
-            to sample non-zero offdiagonal terms
-        p_offdiag: the probability of sampling a non-zero offdiagonal
-            term.
-    """
     assert n_mutations > 0, "n_mutations should be positive."
+    assert 0.0 <= p_diag <= 1.0, "p_diag should be between 0 and 1."
     assert 0.0 <= p_offdiag <= 1.0, "p_offdiag should be between 0 and 1."
 
-    diag = rng.normal(loc=diag_mean, scale=diag_sigma, size=n_mutations)
+    diag = rng.normal(loc=mean, scale=sigma, size=n_mutations)
+    diag = np.where(rng.uniform(size=diag.shape) < p_diag, diag, 0.0)
     diag = np.sort(diag)[::-1]  # Sort from highest baseline effects to the smallest
     offdiag = rng.normal(
-        loc=0.0, scale=offdiag_effect, size=n_mutations * (n_mutations - 1) // 2
+        loc=0.0, scale=sigma, size=n_mutations * (n_mutations - 1) // 2
     )
     offdiag = np.where(rng.uniform(size=offdiag.shape) < p_offdiag, offdiag, 0.0)
+
     return construct_matrix(n=n_mutations, diag=diag, offdiag=offdiag)
