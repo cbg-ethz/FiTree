@@ -2,6 +2,7 @@ import jax
 from typing import NamedTuple
 import numpy as np
 from anytree import PreOrderIter
+import copy
 
 from fitree._trees import TumorTreeCohort, TumorTree, Subclone
 
@@ -25,6 +26,7 @@ class VectorizedTrees(NamedTuple):
     r: jax.Array | np.ndarray  # (n_nodes,)
     gamma: jax.Array | np.ndarray  # (n_nodes,)
     genotypes: jax.Array | np.ndarray  # (n_nodes, n_mutations)
+    ch_mat: jax.Array | np.ndarray  # (n_nodes + 1, n_nodes)
 
     N_trees: jax.Array | np.ndarray  # scalar: number of observed trees
     n_nodes: jax.Array | np.ndarray  # scalar: number of union nodes (w/o root)
@@ -32,6 +34,7 @@ class VectorizedTrees(NamedTuple):
     C_s: jax.Array | np.ndarray  # scalar: sampling scale
     C_0: jax.Array | np.ndarray  # scalar: root size
     C_min: jax.Array | np.ndarray  # scalar: minimum detectable size
+    t_max: jax.Array | np.ndarray  # scalar: maximum sampling time
 
 
 def get_possible_mutations(node: Subclone, n_mutations: int) -> set[int]:
@@ -76,12 +79,14 @@ def get_augmented_tree(
     return tree
 
 
-def wrap_trees(trees: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
+def wrap_trees(cohort: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
     """This function takes a TumorTreeCohort object as input
     and returns a VectorizedTrees object and a union TumorTree.
     The VectorizedTrees is for the computation of the unnormalized likelihood,
     and the union TumorTree is for the normalizing constant.
     """
+
+    trees = copy.deepcopy(cohort)  # avoid modifying the original trees
 
     # 0. Expand all trees
     F_mat = np.zeros((trees.n_mutations, trees.n_mutations))
@@ -144,12 +149,14 @@ def wrap_trees(trees: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
     node_id = np.arange(n_nodes)
     parent_id = np.zeros(n_nodes, dtype=np.int32)
     genotypes = np.zeros((n_nodes, trees.n_mutations), dtype=bool)
+    ch_mat = np.zeros((n_nodes + 1, n_nodes), dtype=bool)
     node_iter = PreOrderIter(union_root)
     next(node_iter)  # skip the root
     for node in node_iter:
         idx = node.node_id - 1
         parent_id[idx] = node.parent.node_id - 1
         genotypes[idx, list(node.genotype)] = True
+        ch_mat[node.parent.node_id, idx] = True
 
     vec_trees = VectorizedTrees(
         cell_number=cell_number,
@@ -167,12 +174,14 @@ def wrap_trees(trees: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
         r=np.zeros(n_nodes),
         gamma=np.zeros(n_nodes),
         genotypes=genotypes,
+        ch_mat=ch_mat,
         N_trees=N_trees,
         n_nodes=n_nodes,
         beta=trees.common_beta,
         C_s=trees.C_sampling,
         C_0=trees.C_0,
         C_min=trees.C_min,
+        t_max=trees.t_max,
     )
 
     # 3. Update the growth parameters of the trees

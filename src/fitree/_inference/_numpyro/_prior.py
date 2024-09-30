@@ -13,7 +13,13 @@ def sample_normal(n_mutations):
     return F_mat
 
 
-def sample_spike_and_slab(n_mutations):
+def sample_spike_and_slab(
+    n_mutations,
+    sparsity_a: float = 3.0,
+    sparsity_b: float = 1.0,
+    spike_scale: float = 0.001,
+    slab_scale: float = 10.0,
+):
     pass
 
 
