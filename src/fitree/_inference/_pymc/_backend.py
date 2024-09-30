@@ -1,8 +1,8 @@
 import pytensor.tensor as pt
 import numpy as np
 
-from ._likelihood import unnormalized_joint_logp
-from ._wrapper import wrap_trees, update_params
+from fitree._inference._likelihood import unnormalized_joint_logp
+from fitree._inference._wrapper import wrap_trees, update_params
 from fitree._trees import TumorTreeCohort
 from fitree._mtbp import _mcdf_sampling
 
