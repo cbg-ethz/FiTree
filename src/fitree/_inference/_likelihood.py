@@ -717,7 +717,7 @@ def compute_q_tilde_vec(trees: VectorizedTrees) -> jnp.ndarray:
     at maximum time t_max.
     """
 
-    q_tilde_vec = jnp.zeros(trees.n_nodes)
+    q_tilde_vec = jnp.zeros(trees.node_id.shape)
 
     def scan_fun(q_tilde_vec, i):
         q_tilde_i = _q_tilde(trees.t_max, trees.C_s, trees.r[i], trees.delta[i])
@@ -739,15 +739,19 @@ def compute_g_tilde_vec(trees: VectorizedTrees) -> jnp.ndarray:
     g_tilde_vec = compute_q_tilde_vec(trees)
 
     # Nodes to scan: reverse order of the nodes
+    # This is to compute g_tilde in reverse topological order of
+    # the union_tree (i.e. starting from the leaves)
     nodes_to_scan = jnp.flip(trees.node_id)
 
     # Compute the recursive g_tilde vector
     def scan_fun(g_tilde_vec, i):
+        # The first row of ch_mat is the root node
+        # so need to index with i + 1
         ch_vec_i = trees.ch_mat[i + 1, :]
 
         def inner_scan_fun(sum_hg_i, j):
             par1, par2 = get_pars(trees, j)
-            sum_hg_i + -_h(g_tilde_vec[j], par1, par2) * ch_vec_i[j]
+            sum_hg_i += -_h(g_tilde_vec[j], par1, par2) * ch_vec_i[j]
             return sum_hg_i, None
 
         sum_hg_i, _ = jax.lax.scan(inner_scan_fun, 0.0, trees.node_id)
@@ -764,7 +768,7 @@ def compute_g_tilde_vec(trees: VectorizedTrees) -> jnp.ndarray:
 
 @jax.jit
 def compute_normalizing_constant(
-    trees: VectorizedTrees, tau: float = 1e-2
+    trees: VectorizedTrees, eps: float = 1e-16, tau: float = 1e-2
 ) -> jnp.ndarray:
     """This function computes the normalizing constant for the
     joint likelihood of the trees. (P(T_s < t_max) in Theorem 3)
@@ -774,34 +778,40 @@ def compute_normalizing_constant(
     t = trees.t_max
     C_0 = trees.C_0
 
-    def scan_fun(pt, i):
+    def scan_fun(log_pt, i):
         lam = trees.lam[i]
         rho = trees.rho[i]
         phi = trees.phi[i]
         g = g_tilde_vec[i]
 
-        pt *= (
+        log_pt += (
             jax.lax.cond(
                 lam < 0.0,
-                lambda: jnp.power(
-                    phi + (1 - phi) * jnp.exp(-g * tau / t), -rho * C_0 * t / tau
-                ),
-                lambda: jnp.power(1 + phi * g, -rho * C_0),
+                lambda: -rho
+                * C_0
+                * t
+                / tau
+                * jnp.log(phi + (1 - phi) * jnp.exp(-g * tau / t) + eps),
+                lambda: -rho * C_0 * jnp.log(1 + phi * g + eps),
             )
             * trees.ch_mat[0, i]
         )
 
-        return pt, None
+        return log_pt, None
 
-    pt, _ = jax.lax.scan(scan_fun, 1.0, trees.node_id)
+    log_pt, _ = jax.lax.scan(scan_fun, 0.0, trees.node_id)
 
-    return 1.0 - pt
+    return 1.0 - jnp.exp(log_pt)
 
 
 @jax.jit
-def jlogp(trees: VectorizedTrees, F_mat: jnp.ndarray, eps: float = 1e-16):
+def jlogp(
+    trees: VectorizedTrees, F_mat: jnp.ndarray, eps: float = 1e-16, tau: float = 1e-2
+):
     """This function computes the joint log-likelihood of a set of trees
-    given the fitness matrix F_mat.
+    given the fitness matrix F_mat after normalizing it by the marginal
+    likelihood of the sampling event occurring before some predefined
+    maximum time. (See Theorem 3 in the supplement)
     """
 
     # Update the growth parameters based on the fitness matrix
@@ -811,7 +821,7 @@ def jlogp(trees: VectorizedTrees, F_mat: jnp.ndarray, eps: float = 1e-16):
     jlogp_unnormalized = unnormalized_joint_logp(updated_trees, eps)
 
     # Compute the normalizing constant
-    normalizing_constant = compute_normalizing_constant(updated_trees)
+    normalizing_constant = compute_normalizing_constant(updated_trees, eps=eps, tau=tau)
 
     # Compute the normalized log-likelihood
     jlogp_normalized = (
