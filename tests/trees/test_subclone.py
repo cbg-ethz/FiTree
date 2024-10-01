@@ -11,17 +11,17 @@ def test_genotype():
     v4 = Subclone(node_id=4, mutation_ids=[4], cell_number=25, parent=v2)
     v5 = Subclone(node_id=5, mutation_ids=[5], cell_number=25, parent=v2)
 
-    assert root.genotype == {0, 1}
-    assert v1.genotype == {0, 1, 2}
-    assert v2.genotype == {0, 1, 3}
-    assert v3.genotype == {0, 1, 2, 5}
-    assert v4.genotype == {0, 1, 3, 4}
-    assert v5.genotype == {0, 1, 3, 5}
+    assert root.genotype == [0, 1]
+    assert v1.genotype == [0, 1, 2]
+    assert v2.genotype == [0, 1, 3]
+    assert v3.genotype == [0, 1, 2, 5]
+    assert v4.genotype == [0, 1, 3, 4]
+    assert v5.genotype == [0, 1, 3, 5]
 
     v2.update_mutation_ids([3, 4])
-    assert v2.genotype == {0, 1, 3, 4}
-    assert v4.genotype == {0, 1, 3, 4}
-    assert v5.genotype == {0, 1, 3, 4, 5}
+    assert v2.genotype == [0, 1, 3, 4]
+    assert v4.genotype == [0, 1, 3, 4]
+    assert v5.genotype == [0, 1, 3, 4, 5]
 
 
 def test_growth_params():

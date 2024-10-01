@@ -19,6 +19,9 @@ class Subclone(SubcloneBase, NodeMixin):
         cell_number: int,
         parent: Subclone | None = None,
         children: Iterable[Subclone] | None = None,
+        genotype: list[int] | None = None,
+        growth_params: dict | None = None,
+        node_path: str | None = None,
     ) -> None:
         """A subclone in the tree
 
@@ -39,7 +42,13 @@ class Subclone(SubcloneBase, NodeMixin):
         if children:
             self.children = children
 
-        self.genotype = self.get_genotype()
+        if genotype is None:
+            self.genotype = self.get_genotype()
+        else:
+            self.genotype = genotype
+
+        self.growth_params = growth_params
+        self.node_path = node_path
 
         if self.is_root:
             self.growth_params = {
@@ -59,11 +68,11 @@ class Subclone(SubcloneBase, NodeMixin):
                 self.parent.node_path + "->" + str(np.sort(self.mutation_ids))
             )
 
-    def get_genotype(self) -> set:
+    def get_genotype(self) -> list[int]:
         genotype = set()
         for node in self.path:
             genotype.update(node.mutation_ids)  # pyright: ignore
-        return genotype
+        return list(genotype)
 
     def update_mutation_ids(self, mutation_ids: Iterable[int]) -> None:
         self.mutation_ids = mutation_ids
@@ -123,7 +132,7 @@ class Subclone(SubcloneBase, NodeMixin):
             r_pa = self.parent.growth_params["r"]
 
             # mutation rate
-            nu = np.prod(mu_vec[list(self.genotype - self.parent.genotype)])
+            nu = np.prod(mu_vec[list(set(self.genotype) - set(self.parent.genotype))])
 
             # birth rate
             coef = 0.0

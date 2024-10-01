@@ -18,9 +18,9 @@ class TumorTreeCohort:
         C_min: int | float = None,
         C_sampling: int | float = None,
         t_max: float = None,
-        mutation_labels: dict | Any = None,
-        tree_labels: dict | Any = None,
-        patient_labels: dict | Any = None,
+        mutation_labels: list | Any = None,
+        tree_labels: list | Any = None,
+        patient_labels: list | Any = None,
     ) -> None:
         self.name = name
         self.trees = trees

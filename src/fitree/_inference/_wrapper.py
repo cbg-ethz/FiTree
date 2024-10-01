@@ -42,7 +42,7 @@ def get_possible_mutations(node: Subclone, n_mutations: int) -> set[int]:
     """This function returns a set of all mutations of the given node,
     as well as its parent and children.
     """
-    mutations = node.get_genotype()
+    mutations = set(node.get_genotype())
     for child in node.children:
         mutations.update(child.mutation_ids)
 
@@ -157,7 +157,9 @@ def wrap_trees(cohort: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
         parent_id[idx] = node.parent.node_id - 1
         genotypes[idx, list(node.genotype)] = True
         ch_mat[node.parent.node_id, idx] = True
-        nu_vec[idx] = np.prod(mu_vec[list(node.genotype - node.parent.genotype)])
+        nu_vec[idx] = np.prod(
+            mu_vec[list(set(node.genotype) - set(node.parent.genotype))]
+        )
 
     vec_trees = VectorizedTrees(
         cell_number=cell_number,

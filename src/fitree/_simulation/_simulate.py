@@ -303,9 +303,9 @@ def generate_trees(
         C_min=C_min,
         C_sampling=C_sampling,
         t_max=t_max,
-        mutation_labels={i: "M" + str(i) for i in range(n_mutations)},
-        tree_labels={i: "T" + str(i) for i in range(N_trees)},
-        patient_labels={i: "P" + str(i) for i in range(N_trees)},
+        mutation_labels=["M" + str(i) for i in range(n_mutations)],
+        tree_labels=["T" + str(i) for i in range(N_trees)],
+        patient_labels=["P" + str(i) for i in range(N_trees)],
     )
 
     return cohort
