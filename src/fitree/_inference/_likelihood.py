@@ -828,4 +828,8 @@ def jlogp(
         jlogp_unnormalized - jnp.log(normalizing_constant + eps) * trees.N_trees
     )
 
+    jlogp_normalized = jnp.where(
+        jnp.isnan(jlogp_normalized), -jnp.inf, jlogp_normalized
+    )
+
     return jlogp_normalized

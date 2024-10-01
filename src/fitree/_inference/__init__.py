@@ -2,6 +2,7 @@
 """
 
 from ._wrapper import VectorizedTrees, wrap_trees
+from ._likelihood import jlogp
 from ._pymc import (
     FiTreeJointLikelihood,
     prior_only_diagonal,
@@ -21,4 +22,5 @@ __all__ = [
     "prior_horseshoe",
     "prior_regularized_horseshoe",
     "prior_spike_and_slab_marginalized",
+    "jlogp",
 ]
