@@ -591,6 +591,7 @@ def unnormalized_joint_logp(trees: VectorizedTrees, eps: float = 1e-16) -> jnp.n
                 None,  # q_tilde_vec
                 None,  # ch_mat
                 None,  # N_trees
+                None,  # N_patients
                 None,  # n_nodes
                 None,  # beta
                 None,  # C_s
@@ -815,17 +816,17 @@ def jlogp(
     """
 
     # Update the growth parameters based on the fitness matrix
-    updated_trees = update_params(trees, F_mat)
+    trees = update_params(trees, F_mat)
 
     # Compute the unnormalized joint log-likelihood
-    jlogp_unnormalized = unnormalized_joint_logp(updated_trees, eps)
+    jlogp_unnormalized = unnormalized_joint_logp(trees, eps)
 
     # Compute the normalizing constant
-    normalizing_constant = compute_normalizing_constant(updated_trees, eps=eps, tau=tau)
+    normalizing_constant = compute_normalizing_constant(trees, eps=eps, tau=tau)
 
     # Compute the normalized log-likelihood
     jlogp_normalized = (
-        jlogp_unnormalized - jnp.log(normalizing_constant + eps) * trees.N_trees
+        jlogp_unnormalized - jnp.log(normalizing_constant + eps) * trees.N_patients
     )
 
     jlogp_normalized = jnp.where(

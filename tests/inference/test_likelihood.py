@@ -49,6 +49,7 @@ def test_mlogp_1():
         r=np.array([2.0, 1.0]),
         gamma=np.array([0.0, 0.0]),
         N_trees=N_trees,
+        N_patients=1,
         n_nodes=2,
         beta=beta,
         C_s=1e9,
@@ -78,6 +79,7 @@ def test_mlogp_1():
                 None,  # r
                 None,  # gamma
                 None,  # N_trees
+                None,  # N_patients
                 None,  # n_nodes
                 None,  # beta
                 None,  # C_s
@@ -138,6 +140,7 @@ def test_mlogp_2():
         r=np.array([1.0, 1.0]),
         gamma=np.array([0.0, 0.0]),
         N_trees=N_trees,
+        N_patients=1,
         n_nodes=2,
         beta=beta,
         C_s=1e9,
@@ -167,6 +170,7 @@ def test_mlogp_2():
                 None,  # r
                 None,  # gamma
                 None,  # N_trees
+                None,  # N_patients
                 None,  # n_nodes
                 None,  # beta
                 None,  # C_s

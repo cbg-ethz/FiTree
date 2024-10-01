@@ -29,6 +29,7 @@ class VectorizedTrees(NamedTuple):
     ch_mat: jax.Array | np.ndarray  # (n_nodes + 1, n_nodes)
 
     N_trees: jax.Array | np.ndarray  # scalar: number of observed trees
+    N_patients: jax.Array | np.ndarray  # scalar: number of patients
     n_nodes: jax.Array | np.ndarray  # scalar: number of union nodes (w/o root)
     beta: jax.Array | np.ndarray  # scalar: common death rate
     C_s: jax.Array | np.ndarray  # scalar: sampling scale
@@ -176,6 +177,7 @@ def wrap_trees(cohort: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
         genotypes=genotypes,
         ch_mat=ch_mat,
         N_trees=N_trees,
+        N_patients=trees.N_patients,
         n_nodes=n_nodes,
         beta=trees.common_beta,
         C_s=trees.C_sampling,
