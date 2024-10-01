@@ -3,7 +3,7 @@ from anytree import PreOrderIter
 from anytree.search import findall_by_attr
 
 from fitree._trees import Subclone, TumorTree, TumorTreeCohort
-from fitree._inference._wrapper import wrap_trees, update_params, get_augmented_tree
+from fitree._inference._wrapper import wrap_trees, get_augmented_tree
 
 
 def test_get_augmented_tree():

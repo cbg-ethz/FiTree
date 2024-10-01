@@ -81,9 +81,7 @@ def get_augmented_tree(
 
 def wrap_trees(cohort: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
     """This function takes a TumorTreeCohort object as input
-    and returns a VectorizedTrees object and a union TumorTree.
-    The VectorizedTrees is for the computation of the unnormalized likelihood,
-    and the union TumorTree is for the normalizing constant.
+    and returns a VectorizedTrees object.
     """
 
     trees = copy.deepcopy(cohort)  # avoid modifying the original trees
@@ -150,6 +148,7 @@ def wrap_trees(cohort: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
     parent_id = np.zeros(n_nodes, dtype=np.int32)
     genotypes = np.zeros((n_nodes, trees.n_mutations), dtype=bool)
     ch_mat = np.zeros((n_nodes + 1, n_nodes), dtype=bool)
+    nu_vec = np.zeros(n_nodes, dtype=np.float64)
     node_iter = PreOrderIter(union_root)
     next(node_iter)  # skip the root
     for node in node_iter:
@@ -157,6 +156,7 @@ def wrap_trees(cohort: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
         parent_id[idx] = node.parent.node_id - 1
         genotypes[idx, list(node.genotype)] = True
         ch_mat[node.parent.node_id, idx] = True
+        nu_vec[idx] = np.prod(mu_vec[list(node.genotype - node.parent.genotype)])
 
     vec_trees = VectorizedTrees(
         cell_number=cell_number,
@@ -165,14 +165,14 @@ def wrap_trees(cohort: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
         weight=weight,
         node_id=node_id,
         parent_id=parent_id,
-        alpha=np.zeros(n_nodes),
-        nu=np.zeros(n_nodes),
-        lam=np.zeros(n_nodes),
-        rho=np.zeros(n_nodes),
-        phi=np.zeros(n_nodes),
-        delta=np.zeros(n_nodes),
-        r=np.zeros(n_nodes),
-        gamma=np.zeros(n_nodes),
+        alpha=np.zeros(n_nodes, dtype=np.float64),
+        nu=nu_vec,
+        lam=np.zeros(n_nodes, dtype=np.float64),
+        rho=np.zeros(n_nodes, dtype=np.float64),
+        phi=np.zeros(n_nodes, dtype=np.float64),
+        delta=np.zeros(n_nodes, dtype=np.float64),
+        r=np.zeros(n_nodes, dtype=np.float64),
+        gamma=np.zeros(n_nodes, dtype=np.float64),
         genotypes=genotypes,
         ch_mat=ch_mat,
         N_trees=N_trees,
@@ -183,38 +183,5 @@ def wrap_trees(cohort: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
         C_min=trees.C_min,
         t_max=trees.t_max,
     )
-
-    # 3. Update the growth parameters of the trees
-    vec_trees, union_tree = update_params(
-        vec_trees, union_tree, F_mat, mu_vec, trees.common_beta
-    )
-
-    return vec_trees, union_tree
-
-
-def update_params(
-    vec_trees: VectorizedTrees,
-    union_tree: TumorTree,
-    F_mat: np.ndarray,
-    mu_vec: np.ndarray,
-    common_beta: float,
-) -> tuple[VectorizedTrees, TumorTree]:
-    """This function updates the growth parameters of the trees
-    based on the given fitness matrix F_mat
-    """
-
-    node_iter = PreOrderIter(union_tree.root)
-    next(node_iter)  # skip the root
-    for node in node_iter:
-        node.get_growth_params(mu_vec=mu_vec, F_mat=F_mat, common_beta=common_beta)
-        idx = node.node_id - 1
-        vec_trees.alpha[idx] = node.growth_params["alpha"]
-        vec_trees.nu[idx] = node.growth_params["nu"]
-        vec_trees.lam[idx] = node.growth_params["lam"]
-        vec_trees.rho[idx] = node.growth_params["rho"]
-        vec_trees.phi[idx] = node.growth_params["phi"]
-        vec_trees.delta[idx] = node.growth_params["delta"]
-        vec_trees.r[idx] = node.growth_params["r"]
-        vec_trees.gamma[idx] = node.growth_params["gamma"]
 
     return vec_trees, union_tree
