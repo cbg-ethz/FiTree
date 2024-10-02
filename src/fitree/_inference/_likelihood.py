@@ -5,7 +5,7 @@ import jax.scipy.special as jss
 
 
 from ._utils import ETA_VEC, BETA_VEC, polylog, integrate
-from ._wrapper import VectorizedTrees
+from fitree._trees._wrapper import VectorizedTrees
 
 
 @jax.jit

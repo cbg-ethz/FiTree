@@ -1,6 +1,7 @@
 """This subpackage implements the simulation of trees
 """
 
-from ._simulate import _generate_one_tree, _generate_valid_tree, generate_trees
+from ._simulate import generate_trees
+from ._fmat import sample_spike_and_slab
 
-__all__ = ["_generate_one_tree", "_generate_valid_tree", "generate_trees"]
+__all__ = ["generate_trees", "sample_spike_and_slab"]

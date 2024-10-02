@@ -3,7 +3,7 @@ import jax.numpy as jnp
 
 from fitree._trees import TumorTreeCohort
 from fitree._inference._likelihood import unnormalized_joint_logp, update_params
-from fitree._inference._wrapper import wrap_trees, VectorizedTrees
+from fitree._trees._wrapper import wrap_trees, VectorizedTrees
 
 
 def prepare_trees(trees: TumorTreeCohort) -> VectorizedTrees:

@@ -1,7 +1,7 @@
 import jax
 import numpy as np
 
-from fitree._inference._wrapper import VectorizedTrees
+from fitree._trees._wrapper import VectorizedTrees
 from fitree._inference._likelihood import _mlogp
 
 tol = 1e-3

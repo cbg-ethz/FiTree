@@ -2,7 +2,7 @@ import pytensor.tensor as pt
 import numpy as np
 
 from fitree._inference._likelihood import jlogp
-from fitree._inference._wrapper import wrap_trees
+from fitree._trees._wrapper import wrap_trees
 from fitree._trees import TumorTreeCohort
 
 Op = pt.Op

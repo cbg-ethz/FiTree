@@ -1,4 +1,18 @@
+from ._trees import (
+    Subclone,
+    TumorTree,
+    TumorTreeCohort,
+    VectorizedTrees,
+    wrap_trees,
+    save_cohort_to_json,
+    load_cohort_from_json,
+)
+from ._simulation import generate_trees, sample_spike_and_slab
+from ._plot import plot_fmat
 from ._inference import (
+    jlogp,
+    update_params,
+    compute_normalizing_constant,
     FiTreeJointLikelihood,
     prior_only_diagonal,
     prior_normal,
@@ -6,17 +20,22 @@ from ._inference import (
     prior_regularized_horseshoe,
     prior_spike_and_slab_marginalized,
 )
-from ._simulation import generate_trees
-from ._trees import Subclone, TumorTree, TumorTreeCohort
-from ._plot import plot_fmat
 
 __all__ = [
-    "FiTreeJointLikelihood",
     "Subclone",
     "TumorTree",
     "TumorTreeCohort",
+    "VectorizedTrees",
+    "wrap_trees",
+    "save_cohort_to_json",
+    "load_cohort_from_json",
     "generate_trees",
+    "sample_spike_and_slab",
     "plot_fmat",
+    "jlogp",
+    "update_params",
+    "compute_normalizing_constant",
+    "FiTreeJointLikelihood",
     "prior_only_diagonal",
     "prior_normal",
     "prior_horseshoe",
