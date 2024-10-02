@@ -20,7 +20,7 @@ class NumpyEncoder(json.JSONEncoder):
             return super().default(obj)  # Default behavior for other types
 
 
-def save_cohort(cohort: TumorTreeCohort, path: str) -> None:
+def save_cohort_to_json(cohort: TumorTreeCohort, path: str) -> None:
     """Save a TumorTreeCohort object to a JSON file."""
 
     exporter = DictExporter()
@@ -57,7 +57,7 @@ def save_cohort(cohort: TumorTreeCohort, path: str) -> None:
     }
 
     with open(path, "w") as f:
-        json.dump(serialized_cohort, f, indent=2, cls=NumpyEncoder)
+        json.dump(serialized_cohort, f, cls=NumpyEncoder)
 
 
 def load_cohort_from_json(path: str) -> TumorTreeCohort:
