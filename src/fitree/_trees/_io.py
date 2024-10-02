@@ -6,6 +6,7 @@ from anytree.importer import DictImporter
 from ._subclone import Subclone
 from ._tumor import TumorTree
 from ._cohort import TumorTreeCohort
+from ._wrapper import VectorizedTrees
 
 
 class NumpyEncoder(json.JSONEncoder):
@@ -105,3 +106,65 @@ def load_cohort_from_json(path: str) -> TumorTreeCohort:
     )
 
     return cohort
+
+
+def save_vectorized_trees_npz(vectorized_trees: VectorizedTrees, path: str):
+    """Save VectorizedTrees NamedTuple to a compressed .npz file."""
+    np.savez_compressed(
+        path,
+        cell_number=vectorized_trees.cell_number,
+        observed=vectorized_trees.observed,
+        sampling_time=vectorized_trees.sampling_time,
+        weight=vectorized_trees.weight,
+        node_id=vectorized_trees.node_id,
+        parent_id=vectorized_trees.parent_id,
+        alpha=vectorized_trees.alpha,
+        nu=vectorized_trees.nu,
+        lam=vectorized_trees.lam,
+        rho=vectorized_trees.rho,
+        phi=vectorized_trees.phi,
+        delta=vectorized_trees.delta,
+        r=vectorized_trees.r,
+        gamma=vectorized_trees.gamma,
+        genotypes=vectorized_trees.genotypes,
+        ch_mat=vectorized_trees.ch_mat,
+        N_trees=vectorized_trees.N_trees,
+        N_patients=vectorized_trees.N_patients,
+        n_nodes=vectorized_trees.n_nodes,
+        beta=vectorized_trees.beta,
+        C_s=vectorized_trees.C_s,
+        C_0=vectorized_trees.C_0,
+        C_min=vectorized_trees.C_min,
+        t_max=vectorized_trees.t_max,
+    )
+
+
+def load_vectorized_trees_npz(path: str) -> VectorizedTrees:
+    """Load a VectorizedTrees NamedTuple from an .npz file."""
+    data = np.load(path)
+    return VectorizedTrees(
+        cell_number=data["cell_number"],
+        observed=data["observed"],
+        sampling_time=data["sampling_time"],
+        weight=data["weight"],
+        node_id=data["node_id"],
+        parent_id=data["parent_id"],
+        alpha=data["alpha"],
+        nu=data["nu"],
+        lam=data["lam"],
+        rho=data["rho"],
+        phi=data["phi"],
+        delta=data["delta"],
+        r=data["r"],
+        gamma=data["gamma"],
+        genotypes=data["genotypes"],
+        ch_mat=data["ch_mat"],
+        N_trees=data["N_trees"],
+        N_patients=data["N_patients"],
+        n_nodes=data["n_nodes"],
+        beta=data["beta"],
+        C_s=data["C_s"],
+        C_0=data["C_0"],
+        C_min=data["C_min"],
+        t_max=data["t_max"],
+    )

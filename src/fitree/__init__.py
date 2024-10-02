@@ -6,6 +6,8 @@ from ._trees import (
     wrap_trees,
     save_cohort_to_json,
     load_cohort_from_json,
+    save_vectorized_trees_npz,
+    load_vectorized_trees_npz,
 )
 from ._simulation import generate_trees, sample_spike_and_slab
 from ._plot import plot_fmat
@@ -29,6 +31,8 @@ __all__ = [
     "wrap_trees",
     "save_cohort_to_json",
     "load_cohort_from_json",
+    "save_vectorized_trees_npz",
+    "load_vectorized_trees_npz",
     "generate_trees",
     "sample_spike_and_slab",
     "plot_fmat",
