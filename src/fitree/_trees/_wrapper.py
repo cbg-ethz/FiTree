@@ -56,9 +56,10 @@ def get_augmented_tree(
     rule: str = "parallel",
     k_repeat: int = 0,
     k_multiple: int = 1,
+    max_level: int = None,
 ) -> Subclone:
     if rule == "parallel":
-        all_nodes = list(PreOrderIter(tree))
+        all_nodes = list(PreOrderIter(tree, maxlevel=max_level))
         for node in all_nodes:
             possible_mutations = get_possible_mutations(node, n_mutations)
             for j in possible_mutations:
@@ -69,13 +70,15 @@ def get_augmented_tree(
                     parent=node,
                 )
     else:
-        raise NotImplementedError
+        raise NotImplementedError(f"Rule {rule} is not implemented yet.")
         # TODO: implement other rules
 
     return tree
 
 
-def wrap_trees(trees: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
+def wrap_trees(
+    trees: TumorTreeCohort, augment_max_level: int = None
+) -> tuple[VectorizedTrees, TumorTree]:
     """This function takes a TumorTreeCohort object as input
     and returns a VectorizedTrees object.
     """
@@ -112,6 +115,7 @@ def wrap_trees(trees: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
         F_mat=F_mat,
         common_beta=trees.common_beta,
         rule="parallel",
+        max_level=augment_max_level,
     )
 
     union_tree = TumorTree(patient_id=-1, tree_id=-1, root=union_root)
