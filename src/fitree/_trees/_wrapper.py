@@ -188,4 +188,37 @@ def wrap_trees(cohort: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
         t_max=trees.t_max,
     )
 
+    # 3. Initialize the growth parameters of the trees
+    vec_trees, union_tree = initialize_params(
+        vec_trees, union_tree, F_mat, mu_vec, trees.common_beta
+    )
+
+    return vec_trees, union_tree
+
+
+def initialize_params(
+    vec_trees: VectorizedTrees,
+    union_tree: TumorTree,
+    F_mat: np.ndarray,
+    mu_vec: np.ndarray,
+    common_beta: float,
+) -> tuple[VectorizedTrees, TumorTree]:
+    """This function updates the growth parameters of the trees
+    based on the given fitness matrix F_mat
+    """
+
+    node_iter = PreOrderIter(union_tree.root)
+    next(node_iter)  # skip the root
+    for node in node_iter:
+        node.get_growth_params(mu_vec=mu_vec, F_mat=F_mat, common_beta=common_beta)
+        idx = node.node_id - 1
+        vec_trees.alpha[idx] = node.growth_params["alpha"]
+        vec_trees.nu[idx] = node.growth_params["nu"]
+        vec_trees.lam[idx] = node.growth_params["lam"]
+        vec_trees.rho[idx] = node.growth_params["rho"]
+        vec_trees.phi[idx] = node.growth_params["phi"]
+        vec_trees.delta[idx] = node.growth_params["delta"]
+        vec_trees.r[idx] = node.growth_params["r"]
+        vec_trees.gamma[idx] = node.growth_params["gamma"]
+
     return vec_trees, union_tree
