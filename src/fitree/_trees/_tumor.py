@@ -54,3 +54,12 @@ class TumorTree:
         )
 
         return tree_str
+
+    def get_tumor_size(self) -> float:
+        tumor_size = 0
+        node_iter = PreOrderIter(self.root)
+        next(node_iter)  # Skip the root node
+        for node in node_iter:
+            tumor_size += node.cell_number
+
+        return tumor_size
