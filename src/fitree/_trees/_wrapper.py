@@ -2,7 +2,6 @@ import jax
 from typing import NamedTuple
 import numpy as np
 from anytree import PreOrderIter
-import copy
 
 from fitree._trees import TumorTreeCohort, TumorTree, Subclone
 
@@ -64,14 +63,11 @@ def get_augmented_tree(
         for node in all_nodes:
             possible_mutations = get_possible_mutations(node, n_mutations)
             for j in possible_mutations:
-                new_node = Subclone(
+                Subclone(
                     node_id=tree.size,
                     mutation_ids=[j],
                     cell_number=0,
                     parent=node,
-                )
-                new_node.get_growth_params(
-                    mu_vec=mu_vec, F_mat=F_mat, common_beta=common_beta
                 )
     else:
         raise NotImplementedError
@@ -80,25 +76,10 @@ def get_augmented_tree(
     return tree
 
 
-def wrap_trees(cohort: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
+def wrap_trees(trees: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
     """This function takes a TumorTreeCohort object as input
     and returns a VectorizedTrees object.
     """
-
-    trees = copy.deepcopy(cohort)  # avoid modifying the original trees
-
-    # 0. Expand all trees
-    F_mat = np.zeros((trees.n_mutations, trees.n_mutations))
-    mu_vec = trees.mu_vec
-    for tree in trees.trees:
-        tree.root = get_augmented_tree(
-            tree=tree.root,
-            n_mutations=trees.n_mutations,
-            mu_vec=mu_vec,
-            F_mat=F_mat,
-            common_beta=trees.common_beta,
-            rule="parallel",
-        )
 
     # 1. Create the union tree
     union_root = Subclone(node_id=0, mutation_ids=[], cell_number=trees.C_0)
@@ -121,6 +102,18 @@ def wrap_trees(cohort: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
                         parent=union_node,
                     )
                     node_dict[child_path] = new_node
+
+    # Augment the union tree
+    F_mat = np.zeros((trees.n_mutations, trees.n_mutations))
+    mu_vec = trees.mu_vec
+    union_root = get_augmented_tree(
+        tree=union_root,
+        n_mutations=trees.n_mutations,
+        mu_vec=mu_vec,
+        F_mat=F_mat,
+        common_beta=trees.common_beta,
+        rule="parallel",
+    )
 
     union_tree = TumorTree(patient_id=-1, tree_id=-1, root=union_root)
 
