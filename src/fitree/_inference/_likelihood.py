@@ -589,7 +589,6 @@ def unnormalized_joint_logp(trees: VectorizedTrees, eps: float = 1e-16) -> jnp.n
                 None,  # gamma
                 None,  # genotypes
                 None,  # q_tilde_vec
-                None,  # ch_mat
                 None,  # N_trees
                 None,  # N_patients
                 None,  # n_nodes
@@ -713,31 +712,12 @@ def update_params(
 
 
 @jax.jit
-def compute_q_tilde_vec(trees: VectorizedTrees) -> jnp.ndarray:
-    """This function computes the q_tilde vector for the tree
-    at maximum time t_max.
-    """
-
-    q_tilde_vec = jnp.zeros(trees.node_id.shape)
-
-    def scan_fun(q_tilde_vec, i):
-        q_tilde_i = _q_tilde(trees.t_max, trees.C_s, trees.r[i], trees.delta[i])
-        q_tilde_vec = q_tilde_vec.at[i].set(q_tilde_i)
-        return q_tilde_vec, None
-
-    q_tilde_vec, _ = jax.lax.scan(scan_fun, q_tilde_vec, trees.node_id)
-
-    return q_tilde_vec
-
-
-@jax.jit
 def compute_g_tilde_vec(trees: VectorizedTrees) -> jnp.ndarray:
     """This function computes the g_tilde vector for the tree
-    at maximum time t_max.
+    at maximum time t_max. (See Theorem 3 in the supplement)
     """
 
-    # Initialize the g_tilde vector with q_tilde vector
-    g_tilde_vec = compute_q_tilde_vec(trees)
+    g_tilde_vec = jnp.zeros(trees.node_id.shape)
 
     # Nodes to scan: reverse order of the nodes
     # This is to compute g_tilde in reverse topological order of
@@ -746,19 +726,20 @@ def compute_g_tilde_vec(trees: VectorizedTrees) -> jnp.ndarray:
 
     # Compute the recursive g_tilde vector
     def scan_fun(g_tilde_vec, i):
-        # The first row of ch_mat is the root node
-        # so need to index with i + 1
-        ch_vec_i = trees.ch_mat[i + 1, :]
-
-        def inner_scan_fun(sum_hg_i, j):
-            par1, par2 = get_pars(trees, j)
-            sum_hg_i += -_h(g_tilde_vec[j], par1, par2) * ch_vec_i[j]
-            return sum_hg_i, None
-
-        sum_hg_i, _ = jax.lax.scan(inner_scan_fun, 0.0, trees.node_id)
-
-        g_tilde_i = g_tilde_vec[i] + sum_hg_i
+        # Compute q_tilde for the node
+        q_tilde_i = _q_tilde(trees.t_max, trees.C_s, trees.r[i], trees.delta[i])
+        g_tilde_i = g_tilde_vec[i] + q_tilde_i
         g_tilde_vec = g_tilde_vec.at[i].set(g_tilde_i)
+
+        # Update the g_tilde vector for the parent node
+        pa_i = trees.parent_id[i]
+        par1, par2 = get_pars(trees, i)
+        g_tilde_pa_i = g_tilde_vec[pa_i] + jax.lax.cond(
+            pa_i == -1,
+            lambda: 0.0,
+            lambda: _h(g_tilde_i, par1, par2),
+        )
+        g_tilde_vec = g_tilde_vec.at[pa_i].set(g_tilde_pa_i)
 
         return g_tilde_vec, None
 
@@ -785,18 +766,15 @@ def compute_normalizing_constant(
         phi = trees.phi[i]
         g = g_tilde_vec[i]
 
-        log_pt += (
-            jax.lax.cond(
-                lam < 0.0,
-                lambda: -rho
-                * C_0
-                * t
-                / tau
-                * jnp.log(phi + (1 - phi) * jnp.exp(-g * tau / t) + eps),
-                lambda: -rho * C_0 * jnp.log(1 + phi * g + eps),
-            )
-            * trees.ch_mat[0, i]
-        )
+        log_pt += jax.lax.cond(
+            lam < 0.0,
+            lambda: -rho
+            * C_0
+            * t
+            / tau
+            * jnp.log(phi + (1 - phi) * jnp.exp(-g * tau / t) + eps),
+            lambda: -rho * C_0 * jnp.log(1 + phi * g + eps),
+        ) * jnp.where(trees.parent_id[i] == -1, 1.0, 0.0)
 
         return log_pt, None
 

@@ -25,7 +25,6 @@ class VectorizedTrees(NamedTuple):
     r: jax.Array | np.ndarray  # (n_nodes,)
     gamma: jax.Array | np.ndarray  # (n_nodes,)
     genotypes: jax.Array | np.ndarray  # (n_nodes, n_mutations)
-    ch_mat: jax.Array | np.ndarray  # (n_nodes + 1, n_nodes)
 
     N_trees: jax.Array | np.ndarray  # scalar: number of observed trees
     N_patients: jax.Array | np.ndarray  # scalar: number of patients
@@ -141,7 +140,6 @@ def wrap_trees(trees: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
     node_id = np.arange(n_nodes)
     parent_id = np.zeros(n_nodes, dtype=np.int32)
     genotypes = np.zeros((n_nodes, trees.n_mutations), dtype=bool)
-    ch_mat = np.zeros((n_nodes + 1, n_nodes), dtype=bool)
     nu_vec = np.zeros(n_nodes, dtype=np.float64)
     node_iter = PreOrderIter(union_root)
     next(node_iter)  # skip the root
@@ -149,7 +147,6 @@ def wrap_trees(trees: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
         idx = node.node_id - 1
         parent_id[idx] = node.parent.node_id - 1
         genotypes[idx, list(node.genotype)] = True
-        ch_mat[node.parent.node_id, idx] = True
         nu_vec[idx] = np.prod(
             mu_vec[list(set(node.genotype) - set(node.parent.genotype))]
         )
@@ -170,7 +167,6 @@ def wrap_trees(trees: TumorTreeCohort) -> tuple[VectorizedTrees, TumorTree]:
         r=np.zeros(n_nodes, dtype=np.float64),
         gamma=np.zeros(n_nodes, dtype=np.float64),
         genotypes=genotypes,
-        ch_mat=ch_mat,
         N_trees=N_trees,
         N_patients=trees.N_patients,
         n_nodes=n_nodes,
