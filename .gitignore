@@ -5,14 +5,17 @@
 *.gzip
 *.tar
 *.tar.gz
-*.json
+# *.json
+*.fa
+*.fai
+*.xlsx
 
 # Poetry lock
 poetry.lock
 
 # Notebooks are disallowed by default
 *.nb
-*.ipynb
+# *.ipynb
 
 # Environmental files
 .idea/
