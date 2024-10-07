@@ -11,6 +11,7 @@ class TumorTree:
         root: Subclone,
         weight: float = 1.0,
         sampling_time: float | None = None,
+        tumor_size: float | None = None,
     ) -> None:
         """A tumor tree
 
@@ -32,6 +33,11 @@ class TumorTree:
         self.weight = weight
         self.sampling_time = sampling_time
 
+        if tumor_size is None:
+            self.tumor_size = self.get_tumor_size()
+        else:
+            self.tumor_size = tumor_size
+
     def get_mutation_ids(self) -> set:
         all_mutation_ids = set()
         for node in PreOrderIter(self.root):
@@ -45,10 +51,13 @@ class TumorTree:
         else:
             tree_str = f"Tumor tree {self.tree_id} of patient {self.patient_id}\n"
 
+        tree_str += f" - Total number of tumor cells: {self.tumor_size:.4E}\n"
+
         tree_str += RenderTree(self.root).by_attr(
             lambda node: f"(Node ID: {node.node_id}) \n"
             + f" - Mutations: {node.mutation_ids} \n"
             + f" - Cell number: {node.cell_number:.4E} \n"
+            + f" - Sequence cell number: {node.seq_cell_number:.4E} \n"
             + f" - Mutation rate: {node.growth_params['nu']:.4E} \n"
             + f" - Net growth rate: {node.growth_params['lam']:.4E}"
         )

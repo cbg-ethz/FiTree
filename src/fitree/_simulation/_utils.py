@@ -5,18 +5,51 @@ from anytree import PreOrderIter
 from fitree._trees import Subclone
 
 
-def _truncate_tree(tree: Subclone, C_min: int | float | np.ndarray = 1e3) -> Subclone:
+def _sample_cells(rng: np.random.Generator, tree: Subclone, C_seq: int) -> Subclone:
     """
-    Recursively truncate the non-detected leaves,
-    assign zeros to non-detected internal nodes,
+    Sample C_seq cells from the tree using the multivariate hypergeometric distribution.
+    i.e. sampling without replacement.
+
+    Parameters
+    ----------
+    rng : np.random.Generator
+        The random number generator.
+    tree : Subclone
+        The tree to be sampled.
+    C_seq : int
+        The number of cells to be sampled.
+
+    Returns
+    -------
+    Subclone
+        The sampled tree.
+    """
+
+    # Get a vector of cell numbers of all nodes in the tree
+    node_iter = PreOrderIter(tree)
+    next(node_iter)  # skip the root
+    node_iter = list(node_iter)
+    cell_numbers = np.array([node.cell_number for node in node_iter])
+    total_cell_number = np.sum(cell_numbers)
+    C_seq = np.min([C_seq, total_cell_number])
+    seq_cell_numbers = rng.multivariate_hypergeometric(cell_numbers, int(C_seq))
+
+    # Assign the sampled cell numbers to the tree
+    for idx, node in enumerate(node_iter):
+        node.seq_cell_number = seq_cell_numbers[idx]
+
+    return tree
+
+
+def _truncate_tree(tree: Subclone) -> Subclone:
+    """
+    Recursively truncate leaves with zero sequenced cell numbers.
     and re-assign node ids.
 
     Parameters
     ----------
     tree : Subclone
             The tree to be truncated.
-    C_min : int | float | np.ndarray, optional
-            The minimum detectable number of cells. Defaults to 1e3.
     """
 
     # recursively truncate the non-detected leaves
@@ -24,15 +57,10 @@ def _truncate_tree(tree: Subclone, C_min: int | float | np.ndarray = 1e3) -> Sub
     while not check:
         check = True
         for node in tree.leaves:
-            if node.cell_number < C_min:
+            if node.seq_cell_number == 0:
                 node.parent = None
                 del node
                 check = False
-
-    # assign zeros to non-detected internal nodes
-    for node in PreOrderIter(tree):
-        if node.cell_number < C_min:
-            node.cell_number = 0
 
     # re-assign node ids
     node_id_counter = 0

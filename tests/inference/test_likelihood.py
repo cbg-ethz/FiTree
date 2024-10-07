@@ -54,7 +54,7 @@ def test_mlogp_1():
         beta=beta,
         C_s=1e9,
         C_0=C_0,
-        C_min=1e3,
+        C_seq=1e3,
         genotypes=np.array([[True, False], [True, True]]),
         t_max=100,
     )
@@ -83,7 +83,7 @@ def test_mlogp_1():
                 None,  # beta
                 None,  # C_s
                 None,  # C_0
-                None,  # C_min
+                None,  # C_seq
                 None,  # genotypes
                 None,  # t_max
             ),
@@ -143,7 +143,7 @@ def test_mlogp_2():
         beta=beta,
         C_s=1e9,
         C_0=C_0,
-        C_min=1e3,
+        C_seq=1e3,
         genotypes=np.array([[True, False], [True, True]]),
         t_max=100,
     )
@@ -172,7 +172,7 @@ def test_mlogp_2():
                 None,  # beta
                 None,  # C_s
                 None,  # C_0
-                None,  # C_min
+                None,  # C_seq
                 None,  # genotypes
                 None,  # t_max
             ),

@@ -15,7 +15,7 @@ class TumorTreeCohort:
         mu_vec: np.ndarray | None = None,
         common_beta: float = None,
         C_0: int | float = None,
-        C_min: int | float = None,
+        C_seq: int | float = None,
         C_sampling: int | float = None,
         t_max: float = None,
         mutation_labels: list | Any = None,
@@ -30,9 +30,14 @@ class TumorTreeCohort:
         self.mu_vec = mu_vec
         self.common_beta = common_beta
         self.C_0 = C_0
-        self.C_min = C_min
+        self.C_seq = C_seq
         self.C_sampling = C_sampling
-        self.t_max = t_max
+
+        if len(trees) > 0:
+            self.get_t_max()
+        else:
+            self.t_max = t_max
+
         self.mutation_labels = mutation_labels
         self.tree_labels = tree_labels
         self.patient_labels = patient_labels

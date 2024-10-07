@@ -5,7 +5,7 @@ from anytree import PreOrderIter
 from typing import Tuple
 
 from fitree._trees import Subclone, TumorTree, TumorTreeCohort
-from ._utils import _truncate_tree, _expand_tree
+from ._utils import _expand_tree, _sample_cells, _truncate_tree
 
 
 def _generate_one_tree(
@@ -15,7 +15,7 @@ def _generate_one_tree(
     F_mat: np.ndarray,
     common_beta: float = 1.0,
     C_0: int | float | np.ndarray = 1e5,
-    C_min: int | float | np.ndarray = 1e3,
+    C_seq: int | np.ndarray = 1e4,
     C_sampling: int | float | np.ndarray = 1e9,
     tau: float = 1e-3,
     t_max: float = 100,
@@ -41,8 +41,8 @@ def _generate_one_tree(
             The common death rate. Defaults to 0.8 (average 40 weeks).
     C_0 : int | float | np.ndarray, optional
             The static wild-type population size. Defaults to 1e5.
-    C_min : int | float | np.ndarray, optional
-            The minimum detectable number of cells. Defaults to 1e3.
+    C_seq : int | np.ndarray, optional
+            Number of cells to sequence. Defaults to 1e4.
     C_sampling : int | float | np.ndarray, optional
             The number of cells to sample. Defaults to 1e9.
     rule : str, optional
@@ -127,8 +127,11 @@ def _generate_one_tree(
         # Update time
         t += tau
 
+    # Sample cells from the tree
+    root = _sample_cells(rng=rng, tree=root, C_seq=C_seq)
+
     # Recursively truncate the non-detected leaves
-    root = _truncate_tree(root, C_min=C_min)
+    root = _truncate_tree(root)
 
     return root, t
 
@@ -141,7 +144,7 @@ def _generate_valid_tree(
     F_mat: np.ndarray,
     common_beta: float = 1.0,
     C_0: int | float | np.ndarray = 1e5,
-    C_min: int | float | np.ndarray = 1e3,
+    C_seq: int | np.ndarray = 1e4,
     C_sampling: int | float | np.ndarray = 1e9,
     tau: float = 1e-3,
     t_max: float = 100,
@@ -160,7 +163,7 @@ def _generate_valid_tree(
             F_mat=F_mat,
             common_beta=common_beta,
             C_0=C_0,
-            C_min=C_min,
+            C_seq=C_seq,
             C_sampling=C_sampling,
             tau=tau,
             t_max=t_max,
@@ -187,7 +190,7 @@ def generate_trees(
     F_mat: np.ndarray,
     common_beta: float = 1.0,
     C_0: int | float | np.ndarray = 1e5,
-    C_min: int | float | np.ndarray = 1e3,
+    C_seq: int | np.ndarray = 1e4,
     C_sampling: int | float | np.ndarray = 1e9,
     tau: float = 1e-3,
     t_max: float = 100,
@@ -218,8 +221,8 @@ def generate_trees(
             The common death rate. Defaults to 0.8 (average 40 weeks).
     C_0 : int | float | np.ndarray, optional
             The static wild-type population size. Defaults to 1e5.
-    C_min : int | float | np.ndarray, optional
-            The minimum detectable number of cells. Defaults to 1e3.
+    C_seq : int | np.ndarray, optional
+            Number of cells to sequence. Defaults to 1e4.
     C_sampling : int | float | np.ndarray, optional
             The number of cells to sample. Defaults to 1e9.
     rule : str, optional
@@ -258,7 +261,7 @@ def generate_trees(
                 F_mat=F_mat,
                 common_beta=common_beta,
                 C_0=C_0,
-                C_min=C_min,
+                C_seq=C_seq,
                 C_sampling=C_sampling,
                 tau=tau,
                 t_max=t_max,
@@ -279,7 +282,7 @@ def generate_trees(
                 F_mat=F_mat,
                 common_beta=common_beta,
                 C_0=C_0,
-                C_min=C_min,
+                C_seq=C_seq,
                 C_sampling=C_sampling,
                 tau=tau,
                 t_max=t_max,
@@ -300,7 +303,7 @@ def generate_trees(
         mu_vec=mu_vec,
         common_beta=common_beta,
         C_0=C_0,
-        C_min=C_min,
+        C_seq=C_seq,
         C_sampling=C_sampling,
         t_max=t_max,
         mutation_labels=["M" + str(i) for i in range(n_mutations)],

@@ -588,14 +588,14 @@ def unnormalized_joint_logp(trees: VectorizedTrees, eps: float = 1e-16) -> jnp.n
                 None,  # r
                 None,  # gamma
                 None,  # genotypes
-                None,  # q_tilde_vec
                 None,  # N_trees
                 None,  # N_patients
                 None,  # n_nodes
                 None,  # beta
                 None,  # C_s
                 None,  # C_0
-                None,  # C_min
+                None,  # C_seq
+                None,  # t_max
             ),
             None,
         ),

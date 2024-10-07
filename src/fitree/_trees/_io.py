@@ -35,6 +35,7 @@ def save_cohort_to_json(cohort: TumorTreeCohort, path: str) -> None:
             "tree_id": tree.tree_id,
             "weight": tree.weight,
             "sampling_time": tree.sampling_time,
+            "tumor_size": tree.tumor_size,
             "tree": root_dict,
         }
 
@@ -48,7 +49,7 @@ def save_cohort_to_json(cohort: TumorTreeCohort, path: str) -> None:
         "mu_vec": cohort.mu_vec.tolist(),
         "common_beta": cohort.common_beta,
         "C_0": cohort.C_0,
-        "C_min": cohort.C_min,
+        "C_seq": cohort.C_seq,
         "C_sampling": cohort.C_sampling,
         "t_max": cohort.t_max,
         "mutation_labels": cohort.mutation_labels,
@@ -78,6 +79,7 @@ def load_cohort_from_json(path: str) -> TumorTreeCohort:
             root=root_node,
             weight=tree_data["weight"],
             sampling_time=tree_data["sampling_time"],
+            tumor_size=tree_data["tumor_size"],
         )
         return tumor_tree
 
@@ -97,7 +99,7 @@ def load_cohort_from_json(path: str) -> TumorTreeCohort:
         mu_vec=np.array(data["mu_vec"]),
         common_beta=data["common_beta"],
         C_0=data["C_0"],
-        C_min=data["C_min"],
+        C_seq=data["C_seq"],
         C_sampling=data["C_sampling"],
         t_max=data["t_max"],
         mutation_labels=data["mutation_labels"],
@@ -127,14 +129,13 @@ def save_vectorized_trees_npz(vectorized_trees: VectorizedTrees, path: str):
         r=vectorized_trees.r,
         gamma=vectorized_trees.gamma,
         genotypes=vectorized_trees.genotypes,
-        ch_mat=vectorized_trees.ch_mat,
         N_trees=vectorized_trees.N_trees,
         N_patients=vectorized_trees.N_patients,
         n_nodes=vectorized_trees.n_nodes,
         beta=vectorized_trees.beta,
         C_s=vectorized_trees.C_s,
         C_0=vectorized_trees.C_0,
-        C_min=vectorized_trees.C_min,
+        C_seq=vectorized_trees.C_seq,
         t_max=vectorized_trees.t_max,
     )
 
@@ -158,13 +159,12 @@ def load_vectorized_trees_npz(path: str) -> VectorizedTrees:
         r=data["r"],
         gamma=data["gamma"],
         genotypes=data["genotypes"],
-        ch_mat=data["ch_mat"],
         N_trees=data["N_trees"],
         N_patients=data["N_patients"],
         n_nodes=data["n_nodes"],
         beta=data["beta"],
         C_s=data["C_s"],
         C_0=data["C_0"],
-        C_min=data["C_min"],
+        C_seq=data["C_seq"],
         t_max=data["t_max"],
     )

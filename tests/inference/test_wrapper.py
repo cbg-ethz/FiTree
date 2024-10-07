@@ -86,7 +86,7 @@ def test_wrap_trees():
 		mu_vec=np.ones(7) * 1e-5,
 		common_beta=1.0,
 		C_0=1e5,
-		C_min=1e3,
+		C_seq=1e3,
 		C_sampling=1e8,
 		t_max=100.0,
 		mutation_labels={i: "M" + str(i) for i in range(7)},

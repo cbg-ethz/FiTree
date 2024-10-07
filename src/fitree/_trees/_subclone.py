@@ -17,6 +17,7 @@ class Subclone(SubcloneBase, NodeMixin):
         node_id: int,
         mutation_ids: Iterable[int],
         cell_number: int,
+        seq_cell_number: int = None,
         parent: Subclone | None = None,
         children: Iterable[Subclone] | None = None,
         genotype: list[int] | None = None,
@@ -29,6 +30,8 @@ class Subclone(SubcloneBase, NodeMixin):
             node_id (int): node id
             mutation_ids (Iterable[int]): mutation_ids in the subclone
             cell_number (int): number of cells attached
+            seq_cell_number (int, optional): number of cells in the
+                sequencing data. Defaults to None.
             parent (Subclone, optional): parent subclone. Defaults to None.
             children (Iterable[Subclone], optional): children subclones.
                 Defaults to None.
@@ -38,6 +41,12 @@ class Subclone(SubcloneBase, NodeMixin):
         self.node_id = node_id
         self.mutation_ids = mutation_ids
         self.cell_number = cell_number
+
+        if seq_cell_number is None:
+            self.seq_cell_number = cell_number
+        else:
+            self.seq_cell_number = seq_cell_number
+
         self.parent = parent
         if children:
             self.children = children

@@ -32,7 +32,7 @@ class VectorizedTrees(NamedTuple):
     beta: jax.Array | np.ndarray  # scalar: common death rate
     C_s: jax.Array | np.ndarray  # scalar: sampling scale
     C_0: jax.Array | np.ndarray  # scalar: root size
-    C_min: jax.Array | np.ndarray  # scalar: minimum detectable size
+    C_seq: jax.Array | np.ndarray  # scalar: number of sequenced cells
     t_max: jax.Array | np.ndarray  # scalar: maximum sampling time
 
 
@@ -123,7 +123,7 @@ def wrap_trees(
     # 2. Create the vectorized trees
     N_trees = trees.N_trees
     n_nodes = union_root.size - 1
-    cell_number = np.ones((N_trees, n_nodes)) * trees.C_min
+    cell_number = np.zeros((N_trees, n_nodes))
     observed = np.zeros((N_trees, n_nodes), dtype=bool)
     sampling_time = np.zeros(N_trees)
     weight = np.zeros(N_trees)
@@ -137,9 +137,14 @@ def wrap_trees(
         next(node_iter)  # skip the root
         for node in node_iter:
             idx = node_dict[node.node_path].node_id - 1
-            if node.cell_number > trees.C_min:
+            if node.seq_cell_number > 0:  # sequenced cell number is not zero
                 observed[i, idx] = True
-                cell_number[i, idx] = node.cell_number
+                cell_number[i, idx] = node.seq_cell_number
+
+        # Estimate original cell numbers based on sample proportions
+        cell_number[i, :] += 1  # add pseudocounts
+        cell_number[i, :] = cell_number[i, :] / np.sum(cell_number[i, :])  # normalize
+        cell_number[i, :] *= tree.tumor_size  # scale
 
     node_id = np.arange(n_nodes)
     parent_id = np.zeros(n_nodes, dtype=np.int32)
@@ -177,7 +182,7 @@ def wrap_trees(
         beta=trees.common_beta,
         C_s=trees.C_sampling,
         C_0=trees.C_0,
-        C_min=trees.C_min,
+        C_seq=trees.C_seq,
         t_max=trees.t_max,
     )
 
