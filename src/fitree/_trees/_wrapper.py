@@ -32,7 +32,6 @@ class VectorizedTrees(NamedTuple):
     beta: jax.Array | np.ndarray  # scalar: common death rate
     C_s: jax.Array | np.ndarray  # scalar: sampling scale
     C_0: jax.Array | np.ndarray  # scalar: root size
-    C_seq: jax.Array | np.ndarray  # scalar: number of sequenced cells
     t_max: jax.Array | np.ndarray  # scalar: maximum sampling time
 
 
@@ -182,7 +181,6 @@ def wrap_trees(
         beta=trees.common_beta,
         C_s=trees.C_sampling,
         C_0=trees.C_0,
-        C_seq=trees.C_seq,
         t_max=trees.t_max,
     )
 

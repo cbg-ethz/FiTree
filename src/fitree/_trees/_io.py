@@ -135,7 +135,6 @@ def save_vectorized_trees_npz(vectorized_trees: VectorizedTrees, path: str):
         beta=vectorized_trees.beta,
         C_s=vectorized_trees.C_s,
         C_0=vectorized_trees.C_0,
-        C_seq=vectorized_trees.C_seq,
         t_max=vectorized_trees.t_max,
     )
 
@@ -165,6 +164,5 @@ def load_vectorized_trees_npz(path: str) -> VectorizedTrees:
         beta=data["beta"],
         C_s=data["C_s"],
         C_0=data["C_0"],
-        C_seq=data["C_seq"],
         t_max=data["t_max"],
     )
