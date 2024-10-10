@@ -13,11 +13,11 @@ class TumorTreeCohort:
         N_trees: int = 0,
         N_patients: int = 0,
         mu_vec: np.ndarray | None = None,
-        common_beta: float = None,
-        C_0: int | float = None,
-        C_seq: int | float = None,
-        C_sampling: int | float = None,
-        t_max: float = None,
+        common_beta: float | None = None,
+        C_0: int | float | None = None,
+        C_seq: int | float | None = None,
+        C_sampling: int | float | None = None,
+        t_max: float | None = None,
         mutation_labels: list | Any = None,
         tree_labels: list | Any = None,
         patient_labels: list | Any = None,
@@ -78,5 +78,5 @@ class TumorTreeCohort:
         self.t_max = 0.0
 
         for tree in self.trees:
-            if tree.sampling_time > self.t_max:
+            if tree.sampling_time > self.t_max:  # pyright: ignore
                 self.t_max = tree.sampling_time

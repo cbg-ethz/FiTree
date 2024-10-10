@@ -35,6 +35,9 @@ def test_mlogp_1():
         cell_number=np.array(
             [(0.0, np.power(10, i / 2)) for i in range(N_trees)]
         ),
+        seq_cell_number=np.array(
+            [(0.0, np.power(10, i / 2)) for i in range(N_trees)]
+        ),
         observed=np.array([(1, 1)] * N_trees),
         sampling_time=np.array([t] * N_trees),
         weight=np.array([1.0] * N_trees),
@@ -63,6 +66,7 @@ def test_mlogp_1():
         in_axes=(
             VectorizedTrees(
                 0,  # cell_number
+                0,  # seq_cell_number
                 0,  # observed
                 0,  # sampling_time
                 0,  # weight
@@ -122,6 +126,9 @@ def test_mlogp_2():
         cell_number=np.array(
             [(0.0, np.power(10, i / 2)) for i in range(N_trees)]
         ),
+        seq_cell_number=np.array(
+            [(0.0, np.power(10, i / 2)) for i in range(N_trees)]
+        ),
         observed=np.array([(1, 1)] * N_trees),
         sampling_time=np.array([t] * N_trees),
         weight=np.array([1.0] * N_trees),
@@ -150,6 +157,7 @@ def test_mlogp_2():
         in_axes=(
             VectorizedTrees(
                 0,  # cell_number
+                0,  # seq_cell_number
                 0,  # observed
                 0,  # sampling_time
                 0,  # weight

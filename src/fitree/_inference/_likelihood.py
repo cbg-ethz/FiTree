@@ -574,6 +574,7 @@ def unnormalized_joint_logp(trees: VectorizedTrees, eps: float = 1e-16) -> jnp.n
         in_axes=(
             VectorizedTrees(
                 0,  # cell_number
+                0,  # seq_cell_number
                 0,  # observed
                 0,  # sampling_time
                 0,  # weight

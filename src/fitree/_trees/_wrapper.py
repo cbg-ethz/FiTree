@@ -10,6 +10,7 @@ class VectorizedTrees(NamedTuple):
     # All trees are stored in array format for vectorized computation in JAX
 
     cell_number: jax.Array | np.ndarray  # (N_trees, n_nodes)
+    seq_cell_number: jax.Array | np.ndarray  # (N_trees, n_nodes)
     observed: jax.Array | np.ndarray  # (N_trees, n_nodes)
     sampling_time: jax.Array | np.ndarray  # (N_trees,)
     weight: jax.Array | np.ndarray  # (N_trees,)
@@ -55,7 +56,7 @@ def get_augmented_tree(
     rule: str = "parallel",
     k_repeat: int = 0,
     k_multiple: int = 1,
-    max_level: int = None,
+    max_level: int | None = None,
 ) -> Subclone:
     if rule == "parallel":
         all_nodes = list(PreOrderIter(tree, maxlevel=max_level))
@@ -76,14 +77,16 @@ def get_augmented_tree(
 
 
 def wrap_trees(
-    trees: TumorTreeCohort, augment_max_level: int = None
+    trees: TumorTreeCohort, augment_max_level: int | None = None
 ) -> tuple[VectorizedTrees, TumorTree]:
     """This function takes a TumorTreeCohort object as input
     and returns a VectorizedTrees object.
     """
 
     # 1. Create the union tree
-    union_root = Subclone(node_id=0, mutation_ids=[], cell_number=trees.C_0)
+    union_root = Subclone(
+        node_id=0, mutation_ids=[], cell_number=trees.C_0  # pyright: ignore
+    )
 
     node_dict = {union_root.node_path: union_root}
 
@@ -110,9 +113,9 @@ def wrap_trees(
     union_root = get_augmented_tree(
         tree=union_root,
         n_mutations=trees.n_mutations,
-        mu_vec=mu_vec,
+        mu_vec=mu_vec,  # pyright: ignore
         F_mat=F_mat,
-        common_beta=trees.common_beta,
+        common_beta=trees.common_beta,  # pyright: ignore
         rule="parallel",
         max_level=augment_max_level,
     )
@@ -123,6 +126,7 @@ def wrap_trees(
     N_trees = trees.N_trees
     n_nodes = union_root.size - 1
     cell_number = np.zeros((N_trees, n_nodes))
+    seq_cell_number = np.zeros((N_trees, n_nodes))
     observed = np.zeros((N_trees, n_nodes), dtype=bool)
     sampling_time = np.zeros(N_trees)
     weight = np.zeros(N_trees)
@@ -138,12 +142,13 @@ def wrap_trees(
             idx = node_dict[node.node_path].node_id - 1
             if node.seq_cell_number > 0:  # sequenced cell number is not zero
                 observed[i, idx] = True
-                cell_number[i, idx] = node.seq_cell_number
+                seq_cell_number[i, idx] = node.seq_cell_number
 
         # Estimate original cell numbers based on sample proportions
-        cell_number[i, :] += 1  # add pseudocounts
+        cell_number[i, :] = seq_cell_number[i, :] + 1  # add pseudocounts
         cell_number[i, :] = cell_number[i, :] / np.sum(cell_number[i, :])  # normalize
         cell_number[i, :] *= tree.tumor_size  # scale
+        cell_number[i, :] = np.round(cell_number[i, :])  # round
 
     node_id = np.arange(n_nodes)
     parent_id = np.zeros(n_nodes, dtype=np.int32)
@@ -156,11 +161,14 @@ def wrap_trees(
         parent_id[idx] = node.parent.node_id - 1
         genotypes[idx, list(node.genotype)] = True
         nu_vec[idx] = np.prod(
-            mu_vec[list(set(node.genotype) - set(node.parent.genotype))]
+            mu_vec[  # pyright: ignore
+                list(set(node.genotype) - set(node.parent.genotype))
+            ]
         )
 
     vec_trees = VectorizedTrees(
         cell_number=cell_number,
+        seq_cell_number=seq_cell_number,
         observed=observed,
         sampling_time=sampling_time,
         weight=weight,
@@ -175,18 +183,18 @@ def wrap_trees(
         r=np.zeros(n_nodes, dtype=np.float64),
         gamma=np.zeros(n_nodes, dtype=np.float64),
         genotypes=genotypes,
-        N_trees=N_trees,
-        N_patients=trees.N_patients,
-        n_nodes=n_nodes,
-        beta=trees.common_beta,
-        C_s=trees.C_sampling,
-        C_0=trees.C_0,
-        t_max=trees.t_max,
+        N_trees=N_trees,  # pyright: ignore
+        N_patients=trees.N_patients,  # pyright: ignore
+        n_nodes=n_nodes,  # pyright: ignore
+        beta=trees.common_beta,  # pyright: ignore
+        C_s=trees.C_sampling,  # pyright: ignore
+        C_0=trees.C_0,  # pyright: ignore
+        t_max=trees.t_max,  # pyright: ignore
     )
 
     # 3. Initialize the growth parameters of the trees
     vec_trees, union_tree = initialize_params(
-        vec_trees, union_tree, F_mat, mu_vec, trees.common_beta
+        vec_trees, union_tree, F_mat, mu_vec, trees.common_beta  # pyright: ignore
     )
 
     return vec_trees, union_tree

@@ -115,6 +115,7 @@ def save_vectorized_trees_npz(vectorized_trees: VectorizedTrees, path: str):
     np.savez_compressed(
         path,
         cell_number=vectorized_trees.cell_number,
+        seq_cell_number=vectorized_trees.seq_cell_number,
         observed=vectorized_trees.observed,
         sampling_time=vectorized_trees.sampling_time,
         weight=vectorized_trees.weight,
@@ -144,6 +145,7 @@ def load_vectorized_trees_npz(path: str) -> VectorizedTrees:
     data = np.load(path)
     return VectorizedTrees(
         cell_number=data["cell_number"],
+        seq_cell_number=data["seq_cell_number"],
         observed=data["observed"],
         sampling_time=data["sampling_time"],
         weight=data["weight"],
