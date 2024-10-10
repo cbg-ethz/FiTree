@@ -158,6 +158,8 @@ dmypy.json
 
 # Raw Data
 raw_data/
+data/
+analysis/
 
 # Plots
 .svg
