@@ -348,7 +348,7 @@ def _mlogp(
         # nodes directly following the root use exact solution
         mlogp = jax.lax.cond(
             pdf,
-            lambda: jstats.nbinom.pmf(
+            lambda: jstats.nbinom.pmf(  # pyright: ignore
                 k=x,
                 n=tree.C_0 * tree.rho[i],
                 p=_pt(tree.alpha[i], tree.beta, tree.lam[i], t),
@@ -472,7 +472,7 @@ def jlogp_no_parent(tree: VectorizedTrees, i: int, eps: float = 1e-16):
 
     lp = jax.lax.cond(
         tree.observed[i],
-        lambda: jstats.nbinom.pmf(
+        lambda: jstats.nbinom.pmf(  # pyright: ignore
             k=x,
             n=tree.C_0 * tree.rho[i],
             p=_pt(tree.alpha[i], tree.beta, tree.lam[i], t),
@@ -573,29 +573,29 @@ def unnormalized_joint_logp(trees: VectorizedTrees, eps: float = 1e-16) -> jnp.n
         jlogp_one_tree,
         in_axes=(
             VectorizedTrees(
-                0,  # cell_number
-                0,  # seq_cell_number
-                0,  # observed
-                0,  # sampling_time
-                0,  # weight
-                None,  # node_id
-                None,  # parent_id
-                None,  # alpha
-                None,  # nu
-                None,  # lam
-                None,  # rho
-                None,  # phi
-                None,  # delta
-                None,  # r
-                None,  # gamma
-                None,  # genotypes
-                None,  # N_trees
-                None,  # N_patients
-                None,  # n_nodes
-                None,  # beta
-                None,  # C_s
-                None,  # C_0
-                None,  # t_max
+                0,  # cell_number  # pyright: ignore
+                0,  # seq_cell_number  # pyright: ignore
+                0,  # observed  # pyright: ignore
+                0,  # sampling_time  # pyright: ignore
+                0,  # weight  # pyright: ignore
+                None,  # node_id  # pyright: ignore
+                None,  # parent_id  # pyright: ignore
+                None,  # alpha  # pyright: ignore
+                None,  # nu  # pyright: ignore
+                None,  # lam  # pyright: ignore
+                None,  # rho  # pyright: ignore
+                None,  # phi  # pyright: ignore
+                None,  # delta  # pyright: ignore
+                None,  # r  # pyright: ignore
+                None,  # gamma  # pyright: ignore
+                None,  # genotypes  # pyright: ignore
+                None,  # N_trees  # pyright: ignore
+                None,  # N_patients  # pyright: ignore
+                None,  # n_nodes  # pyright: ignore
+                None,  # beta  # pyright: ignore
+                None,  # C_s  # pyright: ignore
+                None,  # C_0  # pyright: ignore
+                None,  # t_max  # pyright: ignore
             ),
             None,
         ),
@@ -682,7 +682,7 @@ def update_params(
                 new_lam_i == delta_pa,
                 new_lam_i < delta_pa,
             ],
-            [1.0, r_pa + 1.0, r_pa],
+            [1.0, r_pa + 1.0, r_pa],  # pyright: ignore
         )
         trees_r = trees.r.at[i].set(new_r_i)
 

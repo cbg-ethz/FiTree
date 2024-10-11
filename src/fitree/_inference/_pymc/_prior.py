@@ -21,12 +21,14 @@ def construct_square_matrix(n: int, diag, offdiag):
 
     # Set the diagonal elements
     diag_indices = pt.arange(n), pt.arange(n)
-    mat = pt.set_subtensor(mat[diag_indices], diag)  # Set the diagonal values
+    mat = pt.set_subtensor(
+        mat[diag_indices], diag  # pyright: ignore
+    )  # Set the diagonal values
 
     # Set the upper-triangular off-diagonal elements
     upper_triangular_indices = pt.triu_indices(n, k=1)
     mat = pt.set_subtensor(
-        mat[upper_triangular_indices], offdiag
+        mat[upper_triangular_indices], offdiag  # pyright: ignore
     )  # Set the upper-triangular values
 
     return mat
