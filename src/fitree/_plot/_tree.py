@@ -26,7 +26,9 @@ COLOR_PALETTE = [
 ]
 
 
-def plot_tree(cohort: TumorTreeCohort, tree_id: int, filename: str = None) -> None:
+def plot_tree(
+    cohort: TumorTreeCohort, tree_id: int, filename: str | None = None
+) -> None:
     """Plot a tree in the cohort"""
     tree = cohort.trees[tree_id]
     tree_label = cohort.tree_labels[tree_id]
@@ -113,7 +115,7 @@ def plot_tree(cohort: TumorTreeCohort, tree_id: int, filename: str = None) -> No
             fontname="Helvetica",
         )
 
-        with graph.subgraph() as s:
+        with graph.subgraph() as s:  # pyright: ignore
             s.attr(rank="sink")
             s.node("sampling_time")
 

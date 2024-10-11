@@ -80,3 +80,10 @@ class TumorTreeCohort:
         for tree in self.trees:
             if tree.sampling_time > self.t_max:  # pyright: ignore
                 self.t_max = tree.sampling_time
+
+    def get_observed_mutations(self) -> set[int]:
+        observed_mutations = set()
+        for tree in self.trees:
+            observed_mutations.update(tree.get_mutation_ids())
+
+        return observed_mutations

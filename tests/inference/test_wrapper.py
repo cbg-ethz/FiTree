@@ -19,16 +19,17 @@ def test_get_augmented_tree():
 	for node in PreOrderIter(root):
 		node.get_growth_params(mu_vec=mu_vec, F_mat=F_mat, common_beta=common_beta)
 
+	observed_mutations = {0, 2}
 	augmented_tree = get_augmented_tree(
 		tree=root,
-		n_mutations=3,
+		mutation_set=observed_mutations,
 		mu_vec=mu_vec,
 		F_mat=F_mat,
 		common_beta=common_beta,
 		rule="parallel",
 	)
 
-	assert augmented_tree.size == 8
+	assert augmented_tree.size == 5
 
 	root = Subclone(node_id=0, mutation_ids=[], cell_number=100)
 	v1 = Subclone(node_id=1, mutation_ids=[0], cell_number=50, parent=root)
@@ -41,16 +42,17 @@ def test_get_augmented_tree():
 	for node in PreOrderIter(root):
 		node.get_growth_params(mu_vec=mu_vec, F_mat=F_mat, common_beta=common_beta)
 
+	observed_mutations = {0, 2}
 	augmented_tree = get_augmented_tree(
 		tree=root,
-		n_mutations=3,
+		mutation_set=observed_mutations,
 		mu_vec=mu_vec,
 		F_mat=F_mat,
 		common_beta=common_beta,
 		rule="parallel",
 	)
 
-	assert augmented_tree.size == 7
+	assert augmented_tree.size == 4
 
 
 

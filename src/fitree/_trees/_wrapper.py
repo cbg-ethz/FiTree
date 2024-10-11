@@ -36,7 +36,7 @@ class VectorizedTrees(NamedTuple):
     t_max: jax.Array | np.ndarray  # scalar: maximum sampling time
 
 
-def get_possible_mutations(node: Subclone, n_mutations: int) -> set[int]:
+def get_possible_mutations(node: Subclone, mutation_set: set) -> set[int]:
     """This function returns a set of all mutations of the given node,
     as well as its parent and children.
     """
@@ -44,12 +44,12 @@ def get_possible_mutations(node: Subclone, n_mutations: int) -> set[int]:
     for child in node.children:
         mutations.update(child.mutation_ids)
 
-    return set(range(n_mutations)).difference(mutations)
+    return mutation_set.difference(mutations)
 
 
 def get_augmented_tree(
     tree: Subclone,
-    n_mutations: int,
+    mutation_set: set,
     mu_vec: np.ndarray,
     F_mat: np.ndarray,
     common_beta: float = 0.8,
@@ -61,7 +61,7 @@ def get_augmented_tree(
     if rule == "parallel":
         all_nodes = list(PreOrderIter(tree, maxlevel=max_level))
         for node in all_nodes:
-            possible_mutations = get_possible_mutations(node, n_mutations)
+            possible_mutations = get_possible_mutations(node, mutation_set)
             for j in possible_mutations:
                 Subclone(
                     node_id=tree.size,
@@ -110,9 +110,10 @@ def wrap_trees(
     # Augment the union tree
     F_mat = np.zeros((trees.n_mutations, trees.n_mutations))
     mu_vec = trees.mu_vec
+    observed_mutations = trees.get_observed_mutations()
     union_root = get_augmented_tree(
         tree=union_root,
-        n_mutations=trees.n_mutations,
+        mutation_set=observed_mutations,
         mu_vec=mu_vec,  # pyright: ignore
         F_mat=F_mat,
         common_beta=trees.common_beta,  # pyright: ignore

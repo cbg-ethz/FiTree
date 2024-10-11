@@ -5,7 +5,7 @@
 *.gzip
 *.tar
 *.tar.gz
-# *.json
+*.json
 *.fa
 *.fai
 *.xlsx

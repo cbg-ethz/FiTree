@@ -17,7 +17,7 @@ class Subclone(SubcloneBase, NodeMixin):
         node_id: int,
         mutation_ids: Iterable[int],
         cell_number: int,
-        seq_cell_number: int = None,
+        seq_cell_number: int | None = None,
         parent: Subclone | None = None,
         children: Iterable[Subclone] | None = None,
         genotype: list[int] | None = None,
@@ -74,7 +74,9 @@ class Subclone(SubcloneBase, NodeMixin):
             self.node_path = str([])
         else:
             self.node_path = (
-                self.parent.node_path + "->" + str(np.sort(self.mutation_ids))
+                self.parent.node_path  # pyright: ignore
+                + "->"
+                + str(np.sort(self.mutation_ids))  # pyright: ignore
             )
 
     def get_genotype(self) -> list[int]:
@@ -214,8 +216,8 @@ class Subclone(SubcloneBase, NodeMixin):
             return self.cell_number
         else:
             return (
-                np.power(t, -(self.growth_params["r"] - 1))
-                * np.exp(-self.growth_params["delta"] * t)
+                np.power(t, -(self.growth_params["r"] - 1))  # pyright: ignore
+                * np.exp(-self.growth_params["delta"] * t)  # pyright: ignore
                 * self.cell_number
             )
 

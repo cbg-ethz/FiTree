@@ -54,7 +54,7 @@ class TumorTree:
         tree_str += f" - Total number of tumor cells: {self.tumor_size:.4E}\n"
 
         tree_str += RenderTree(self.root).by_attr(
-            lambda node: f"(Node ID: {node.node_id}) \n"
+            lambda node: f"(Node ID: {node.node_id}) \n"  # pyright: ignore
             + f" - Mutations: {node.mutation_ids} \n"
             + f" - Cell number: {node.cell_number:.4E} \n"
             + f" - Sequence cell number: {node.seq_cell_number:.4E} \n"
