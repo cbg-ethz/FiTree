@@ -44,7 +44,6 @@ def plot_fmat_posterior(
     n_mutations = F_mat_posterior.shape[1]
 
     F_mat_posterior = F_mat_posterior.transpose(0, 2, 1)
-    true_F_mat = true_F_mat.transpose()
 
     if mutation_labels is None:
         mutation_labels = [f"M{i}" for i in range(n_mutations)]
@@ -58,6 +57,7 @@ def plot_fmat_posterior(
         sns.histplot(F_mat_posterior[:, i, j], ax=ax, kde=True)
 
         if true_F_mat is not None:
+            true_F_mat = true_F_mat.transpose()
             ax.axvline(true_F_mat[i, j], color="darkgreen", linestyle="--")
 
         # Remove y-axis labels and titles for all subplots
