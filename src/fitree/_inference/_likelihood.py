@@ -7,6 +7,8 @@ import jax.scipy.special as jss
 from ._utils import ETA_VEC, BETA_VEC, polylog, integrate
 from fitree._trees._wrapper import VectorizedTrees
 
+jax.config.update("jax_enable_x64", True)
+
 
 @jax.jit
 def _pt(alpha: jnp.ndarray, beta: jnp.ndarray, lam: jnp.ndarray, t: jnp.ndarray):

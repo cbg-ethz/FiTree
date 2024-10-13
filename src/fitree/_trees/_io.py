@@ -10,7 +10,7 @@ from ._wrapper import VectorizedTrees
 
 
 class NumpyEncoder(json.JSONEncoder):
-    def default(self, obj):
+    def default(self, obj):  # pyright: ignore
         if isinstance(obj, np.integer):
             return int(obj)  # Convert np.int64 to Python int
         elif isinstance(obj, np.floating):
@@ -66,7 +66,7 @@ def load_cohort_from_json(path: str) -> TumorTreeCohort:
     """Load a TumorTreeCohort object from a JSON file."""
 
     # Initialize the Subclone importer
-    importer = DictImporter(nodecls=Subclone)
+    importer = DictImporter(nodecls=Subclone)  # pyright: ignore
 
     # Helper function to reconstruct TumorTree objects from JSON
     def reconstruct_tree(tree_data):
@@ -76,7 +76,7 @@ def load_cohort_from_json(path: str) -> TumorTreeCohort:
         tumor_tree = TumorTree(
             patient_id=tree_data["patient_id"],
             tree_id=tree_data["tree_id"],
-            root=root_node,
+            root=root_node,  # pyright: ignore
             weight=tree_data["weight"],
             sampling_time=tree_data["sampling_time"],
             tumor_size=tree_data["tumor_size"],
