@@ -452,37 +452,28 @@ def get_pars(tree: VectorizedTrees, i: int):
 
 
 @jax.jit
-def jlogp_no_parent(tree: VectorizedTrees, i: int, eps: float = 1e-64):
+def jlogp_no_parent(
+    x: jnp.ndarray, observed: bool, t: jnp.ndarray, par: dict, eps: float = 1e-64
+):
     """This function computes the log-likelihood of a subclone
     if its parent is the root, i.e. no parent.
     (See Lemma 1 and Theorem 1 in the supplement)
 
     It also computes part of the log-likelihood of the sampling time
     given the subclone. (See Theorem 3 in the supplement)
-
-    Args:
-        tree : VectorizedTrees
-            The tree object.
-        i : int
-            The index of the node in the tree.
-        eps : float, optional
-            The machine epsilon. Defaults to 1e-64.
     """
 
-    x = tree.cell_number[i]
-    t = tree.sampling_time
-
     lp = jax.lax.cond(
-        tree.observed[i],
+        observed,
         lambda: jstats.nbinom.pmf(  # pyright: ignore
             k=x,
-            n=tree.C_0 * tree.rho[i],
-            p=_pt(tree.alpha[i], tree.beta, tree.lam[i], t),
+            n=par["C_0"] * par["rho"],
+            p=_pt(par["alpha"], par["beta"], par["lam"], t),
         ),
         lambda: jss.betainc(
-            a=tree.C_0 * tree.rho[i],
+            a=par["C_0"] * par["rho"],
             b=x + 1.0,
-            x=_pt(tree.alpha[i], tree.beta, tree.lam[i], t),
+            x=_pt(par["alpha"], par["beta"], par["lam"], t),
         ),
     )
 
@@ -492,28 +483,19 @@ def jlogp_no_parent(tree: VectorizedTrees, i: int, eps: float = 1e-64):
 
 
 @jax.jit
-def jlogp_w_parent(tree: VectorizedTrees, i: int, eps: float = 1e-64):
+def jlogp_w_parent(
+    x1: jnp.ndarray,
+    x2: jnp.ndarray,
+    observed: jnp.ndarray,
+    t: jnp.ndarray,
+    par1: dict,
+    par2: dict,
+    eps: float = 1e-64,
+):
     """This function computes the log-likelihood of a subclone
     given its parent (See Theorem 2 in the supplement)
-
-    Args:
-        tree : VectorizedTrees
-            The tree object.
-        i : int
-            The index of the node in the tree.
-        eps : float, optional
-            The machine epsilon. Defaults to 1e-64.
     """
-
-    x1 = jnp.where(
-        tree.observed[tree.parent_id[i]],
-        tree.cell_number[tree.parent_id[i]],
-        0.0,
-    )
-    x2 = tree.cell_number[i]
-    t = tree.sampling_time
-
-    par1, par2 = get_pars(tree, i)
+    x1 = jnp.where(observed[0], x1, 0.0)
 
     lam_diff = par2["lam"] - par1["delta"]
 
@@ -526,41 +508,69 @@ def jlogp_w_parent(tree: VectorizedTrees, i: int, eps: float = 1e-64):
         par1,
         par2,
         eps,
-        tree.observed[i],
+        observed[1],
     )
 
     return lp
 
 
 @jax.jit
-def jlogp_one_node(tree: VectorizedTrees, i: int, eps: float = 1e-64):
+def jlogp_one_tree(
+    x_vec: jnp.ndarray,
+    observed: jnp.ndarray,
+    t: jnp.ndarray,
+    par1: dict,
+    par2: dict,
+    no_parent: bool,
+    eps: float = 1e-64,
+):
+    x1 = x_vec[0]
+    x2 = x_vec[1]
+
     lp = jax.lax.cond(
-        tree.parent_id[i] == -1,
-        lambda: jlogp_no_parent(tree, i, eps),
-        lambda: jlogp_w_parent(tree, i, eps),
+        no_parent,
+        lambda: jlogp_no_parent(x2, observed[1], t, par2, eps),
+        lambda: jlogp_w_parent(x1, x2, observed, t, par1, par2, eps),
     )
 
-    x = tree.cell_number[i]
-    t = tree.sampling_time
-    x_tilde = x * jnp.exp(-tree.delta[i] * t) * jnp.power(t, 1.0 - tree.r[i])
-    lt = -_q_tilde(t, tree.C_s, tree.r[i], tree.delta[i]) * x_tilde
+    x2_tilde = x2 * jnp.exp(-par2["delta"] * t) * jnp.power(t, 1.0 - par2["r"])
+    lt = -_q_tilde(t, par2["C_s"], par2["r"], par2["delta"]) * x2_tilde
 
     return lp + lt
 
 
 @jax.jit
-def jlogp_one_tree(tree: VectorizedTrees, eps: float = 1e-64):
-    """This function computes the log-likelihood of a tree"""
+def jlogp_one_node(
+    trees: VectorizedTrees,
+    i: int,
+    eps: float = 1e-64,
+):
+    par1, par2 = get_pars(trees, i)
+    pa_i = trees.parent_id[i]
+    no_parent = jnp.where(pa_i == -1, True, False)
 
-    def scan_fun(jlogp, i):
-        new_jlogp = jlogp_one_node(tree, i, eps) + jlogp
-        return new_jlogp, new_jlogp
+    lp = jax.vmap(
+        jlogp_one_tree,
+        in_axes=(
+            0,
+            0,
+            0,
+            None,
+            None,
+            None,
+            None,
+        ),
+    )(
+        trees.cell_number[:, [pa_i, i]],
+        trees.observed[:, [pa_i, i]],
+        trees.sampling_time,
+        par1,
+        par2,
+        no_parent,
+        eps,
+    )
 
-    jlogp, _ = jax.lax.scan(scan_fun, 0.0, tree.node_id)
-
-    jlogp += jnp.log(jnp.sum(tree.cell_number) + eps) - jnp.log(tree.C_s)
-
-    return jlogp
+    return jnp.dot(trees.weight, lp)
 
 
 @jax.jit
@@ -571,39 +581,18 @@ def unnormalized_joint_logp(trees: VectorizedTrees, eps: float = 1e-64) -> jnp.n
     maximum time, which is given in Theorem 3 in the supplement.
     """
 
-    jlogp = jax.vmap(
-        jlogp_one_tree,
-        in_axes=(
-            VectorizedTrees(
-                0,  # cell_number  # pyright: ignore
-                0,  # seq_cell_number  # pyright: ignore
-                0,  # observed  # pyright: ignore
-                0,  # sampling_time  # pyright: ignore
-                0,  # weight  # pyright: ignore
-                None,  # node_id  # pyright: ignore
-                None,  # parent_id  # pyright: ignore
-                None,  # alpha  # pyright: ignore
-                None,  # nu  # pyright: ignore
-                None,  # lam  # pyright: ignore
-                None,  # rho  # pyright: ignore
-                None,  # phi  # pyright: ignore
-                None,  # delta  # pyright: ignore
-                None,  # r  # pyright: ignore
-                None,  # gamma  # pyright: ignore
-                None,  # genotypes  # pyright: ignore
-                None,  # N_trees  # pyright: ignore
-                None,  # N_patients  # pyright: ignore
-                None,  # n_nodes  # pyright: ignore
-                None,  # beta  # pyright: ignore
-                None,  # C_s  # pyright: ignore
-                None,  # C_0  # pyright: ignore
-                None,  # t_max  # pyright: ignore
-            ),
-            None,
-        ),
-    )(trees, eps)
+    def scan_fun(jlogp, i):
+        new_jlogp = jlogp_one_node(trees, i, eps) + jlogp
+        return new_jlogp, new_jlogp
 
-    return jnp.dot(trees.weight, jlogp)
+    jlogp, _ = jax.lax.scan(scan_fun, 0.0, trees.node_id)
+
+    jlogp += jnp.dot(
+        jnp.log(jnp.sum(trees.cell_number, axis=1) + eps) - jnp.log(trees.C_s),
+        trees.weight,
+    )
+
+    return jlogp
 
 
 @jax.jit
