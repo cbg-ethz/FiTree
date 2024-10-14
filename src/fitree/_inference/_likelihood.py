@@ -60,7 +60,7 @@ def _lp2_case1(
     t: jnp.ndarray,
     par1: dict,
     par2: dict,
-    eps: float = 1e-16,
+    eps: float = 1e-64,
     pdf: bool = True,
 ):
     """This function computes the log-likelihood of a subclone
@@ -80,7 +80,7 @@ def _lp2_case1(
         par2 : dict
             The growth parameters of the subclone.
         eps : float, optional
-            The machine epsilon. Defaults to 1e-16.
+            The machine epsilon. Defaults to 1e-64.
     """
 
     delta1 = par1["delta"]
@@ -128,7 +128,7 @@ def _lp2_case2(
     t: jnp.ndarray,
     par1: dict,
     par2: dict,
-    eps: float = 1e-16,
+    eps: float = 1e-64,
     pdf: bool = True,
 ):
     """This function computes the log-likelihood of a subclone
@@ -149,7 +149,7 @@ def _lp2_case2(
         par2 : dict
             The growth parameters of the subclone.
         eps : float, optional
-            The machine epsilon. Defaults to 1e-16.
+            The machine epsilon. Defaults to 1e-64.
     """
 
     delta1 = par1["delta"]
@@ -240,7 +240,7 @@ def _lp2_case3(
     t: jnp.ndarray,
     par1: dict,
     par2: dict,
-    eps: float = 1e-16,
+    eps: float = 1e-64,
     pdf: bool = True,
 ):
     """This function computes the log-likelihood of a subclone
@@ -260,7 +260,7 @@ def _lp2_case3(
         par2 : dict
             The growth parameters of the subclone.
         eps : float, optional
-            The machine epsilon. Defaults to 1e-16.
+            The machine epsilon. Defaults to 1e-64.
     """
 
     delta1 = par1["delta"]
@@ -339,7 +339,7 @@ def _mlogp(
     tree: VectorizedTrees,
     i: int,
     x: float = jnp.inf,
-    eps: float = 1e-16,
+    eps: float = 1e-64,
     pdf: bool = True,
     tau: float = 0.01,
 ):
@@ -452,7 +452,7 @@ def get_pars(tree: VectorizedTrees, i: int):
 
 
 @jax.jit
-def jlogp_no_parent(tree: VectorizedTrees, i: int, eps: float = 1e-16):
+def jlogp_no_parent(tree: VectorizedTrees, i: int, eps: float = 1e-64):
     """This function computes the log-likelihood of a subclone
     if its parent is the root, i.e. no parent.
     (See Lemma 1 and Theorem 1 in the supplement)
@@ -466,7 +466,7 @@ def jlogp_no_parent(tree: VectorizedTrees, i: int, eps: float = 1e-16):
         i : int
             The index of the node in the tree.
         eps : float, optional
-            The machine epsilon. Defaults to 1e-16.
+            The machine epsilon. Defaults to 1e-64.
     """
 
     x = tree.cell_number[i]
@@ -492,7 +492,7 @@ def jlogp_no_parent(tree: VectorizedTrees, i: int, eps: float = 1e-16):
 
 
 @jax.jit
-def jlogp_w_parent(tree: VectorizedTrees, i: int, eps: float = 1e-16):
+def jlogp_w_parent(tree: VectorizedTrees, i: int, eps: float = 1e-64):
     """This function computes the log-likelihood of a subclone
     given its parent (See Theorem 2 in the supplement)
 
@@ -502,7 +502,7 @@ def jlogp_w_parent(tree: VectorizedTrees, i: int, eps: float = 1e-16):
         i : int
             The index of the node in the tree.
         eps : float, optional
-            The machine epsilon. Defaults to 1e-16.
+            The machine epsilon. Defaults to 1e-64.
     """
 
     x1 = jnp.where(
@@ -533,7 +533,7 @@ def jlogp_w_parent(tree: VectorizedTrees, i: int, eps: float = 1e-16):
 
 
 @jax.jit
-def jlogp_one_node(tree: VectorizedTrees, i: int, eps: float = 1e-16):
+def jlogp_one_node(tree: VectorizedTrees, i: int, eps: float = 1e-64):
     lp = jax.lax.cond(
         tree.parent_id[i] == -1,
         lambda: jlogp_no_parent(tree, i, eps),
@@ -549,7 +549,7 @@ def jlogp_one_node(tree: VectorizedTrees, i: int, eps: float = 1e-16):
 
 
 @jax.jit
-def jlogp_one_tree(tree: VectorizedTrees, eps: float = 1e-16):
+def jlogp_one_tree(tree: VectorizedTrees, eps: float = 1e-64):
     """This function computes the log-likelihood of a tree"""
 
     def scan_fun(jlogp, i):
@@ -564,7 +564,7 @@ def jlogp_one_tree(tree: VectorizedTrees, eps: float = 1e-16):
 
 
 @jax.jit
-def unnormalized_joint_logp(trees: VectorizedTrees, eps: float = 1e-16) -> jnp.ndarray:
+def unnormalized_joint_logp(trees: VectorizedTrees, eps: float = 1e-64) -> jnp.ndarray:
     """This function computes the unnormalized joint log-likelihood
     of a set of trees. We still need to normalize it by the marginal
     probability of the sampling event occurring before some predefined
@@ -752,7 +752,7 @@ def compute_g_tilde_vec(trees: VectorizedTrees) -> jnp.ndarray:
 
 @jax.jit
 def compute_normalizing_constant(
-    trees: VectorizedTrees, eps: float = 1e-16, tau: float = 1e-2
+    trees: VectorizedTrees, eps: float = 1e-64, tau: float = 1e-2
 ) -> jnp.ndarray:
     """This function computes the normalizing constant for the
     joint likelihood of the trees. (P(T_s < t_max) in Theorem 3)
@@ -787,7 +787,7 @@ def compute_normalizing_constant(
 
 @jax.jit
 def jlogp(
-    trees: VectorizedTrees, F_mat: jnp.ndarray, eps: float = 1e-16, tau: float = 1e-2
+    trees: VectorizedTrees, F_mat: jnp.ndarray, eps: float = 1e-64, tau: float = 1e-2
 ):
     """This function computes the joint log-likelihood of a set of trees
     given the fitness matrix F_mat after normalizing it by the marginal

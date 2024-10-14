@@ -17,7 +17,7 @@ class FiTreeJointLikelihood(Op):
     def __init__(
         self,
         trees: TumorTreeCohort,
-        eps: float = 1e-16,
+        eps: float = 1e-64,
         tau: float = 1e-2,
         augment_max_level: int | None = None,
         pseudo_count: float = 0,
