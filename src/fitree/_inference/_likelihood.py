@@ -488,11 +488,7 @@ def jlogp_no_parent(tree: VectorizedTrees, i: int, eps: float = 1e-16):
 
     lp = jnp.log(lp + eps)
 
-    x_tilde = x * jnp.exp(-tree.delta[i] * t) * jnp.power(t, 1.0 - tree.r[i])
-
-    lt = -_q_tilde(t, tree.C_s, tree.r[i], tree.delta[i]) * x_tilde
-
-    return lp + lt
+    return lp
 
 
 @jax.jit
@@ -533,19 +529,23 @@ def jlogp_w_parent(tree: VectorizedTrees, i: int, eps: float = 1e-16):
         tree.observed[i],
     )
 
-    x2_tilde = x2 * jnp.exp(-tree.delta[i] * t) * jnp.power(t, 1.0 - tree.r[i])
-    lt = -_q_tilde(t, tree.C_s, tree.r[i], tree.delta[i]) * x2_tilde
-
-    return lp + lt
+    return lp
 
 
 @jax.jit
 def jlogp_one_node(tree: VectorizedTrees, i: int, eps: float = 1e-16):
-    return jax.lax.cond(
+    lp = jax.lax.cond(
         tree.parent_id[i] == -1,
         lambda: jlogp_no_parent(tree, i, eps),
         lambda: jlogp_w_parent(tree, i, eps),
     )
+
+    x = tree.cell_number[i]
+    t = tree.sampling_time
+    x_tilde = x * jnp.exp(-tree.delta[i] * t) * jnp.power(t, 1.0 - tree.r[i])
+    lt = -_q_tilde(t, tree.C_s, tree.r[i], tree.delta[i]) * x_tilde
+
+    return lp + lt
 
 
 @jax.jit
