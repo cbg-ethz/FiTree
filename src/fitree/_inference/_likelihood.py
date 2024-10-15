@@ -656,19 +656,32 @@ def sum_fitness_effects(
 def update_params(
     trees: VectorizedTrees,
     F_mat: jnp.ndarray,
+    zero_window: float = 1e-2,
 ):
     """This function updates the growth parameters of the tree
     based on the fitness matrix.
     """
 
     def scan_fun(trees, i):
+        pa_i = trees.parent_id[i]
+        delta_pa = jnp.where(pa_i == -1, 0.0, trees.delta[pa_i])
+        r_pa = jnp.where(pa_i == -1, 1.0, trees.r[pa_i])
+
         log_alpha = jnp.log(trees.beta) + sum_fitness_effects(
             trees.genotypes[i, :], F_mat
         )
         new_alpha_i = jnp.exp(log_alpha)
-        trees_alpha = trees.alpha.at[i].set(new_alpha_i)
 
         new_lam_i = new_alpha_i - trees.beta
+        new_lam_i = jnp.where(
+            jnp.abs(new_lam_i - delta_pa) < zero_window,
+            delta_pa,  # pyright: ignore
+            new_lam_i,  # pyright: ignore
+        )
+
+        new_alpha_i = new_lam_i + trees.beta
+
+        trees_alpha = trees.alpha.at[i].set(new_alpha_i)
         trees_lam = trees.lam.at[i].set(new_lam_i)
 
         new_rho_i = trees.nu[i] / new_alpha_i
@@ -688,9 +701,6 @@ def update_params(
         )
         trees_phi = trees.phi.at[i].set(new_phi_i)
 
-        pa_i = trees.parent_id[i]
-        delta_pa = jnp.where(pa_i == -1, 0.0, trees.delta[pa_i])
-        r_pa = jnp.where(pa_i == -1, 1.0, trees.r[pa_i])
         new_delta_i = jnp.max(jnp.array([delta_pa, new_lam_i]))
         trees_delta = trees.delta.at[i].set(new_delta_i)
 
