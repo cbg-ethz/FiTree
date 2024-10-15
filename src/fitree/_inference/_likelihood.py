@@ -350,19 +350,20 @@ def _mlogp(
         # nodes directly following the root use exact solution
         mlogp = jax.lax.cond(
             pdf,
-            lambda: jstats.nbinom.pmf(  # pyright: ignore
+            lambda: jstats.nbinom.logpmf(  # pyright: ignore
                 k=x,
                 n=tree.C_0 * tree.rho[i],
                 p=_pt(tree.alpha[i], tree.beta, tree.lam[i], t),
             ),
-            lambda: jss.betainc(
-                a=tree.C_0 * tree.rho[i],
-                b=x + 1.0,
-                x=_pt(tree.alpha[i], tree.beta, tree.lam[i], t),
+            lambda: jnp.log(
+                jss.betainc(
+                    a=tree.C_0 * tree.rho[i],
+                    b=x + 1.0,
+                    x=_pt(tree.alpha[i], tree.beta, tree.lam[i], t),
+                )
+                + eps
             ),
         )
-
-        mlogp = jnp.log(mlogp + eps)
 
         return mlogp
 
@@ -465,19 +466,20 @@ def jlogp_no_parent(
 
     lp = jax.lax.cond(
         observed,
-        lambda: jstats.nbinom.pmf(  # pyright: ignore
+        lambda: jstats.nbinom.logpmf(  # pyright: ignore
             k=x,
             n=par["C_0"] * par["rho"],
             p=_pt(par["alpha"], par["beta"], par["lam"], t),
         ),
-        lambda: jss.betainc(
-            a=par["C_0"] * par["rho"],
-            b=x + 1.0,
-            x=_pt(par["alpha"], par["beta"], par["lam"], t),
+        lambda: jnp.log(
+            jss.betainc(
+                a=par["C_0"] * par["rho"],
+                b=x + 1.0,
+                x=_pt(par["alpha"], par["beta"], par["lam"], t),
+            )
+            + eps
         ),
     )
-
-    lp = jnp.log(lp + eps)
 
     return lp
 
