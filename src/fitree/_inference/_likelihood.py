@@ -4,7 +4,7 @@ import jax.scipy.stats as jstats
 import jax.scipy.special as jss
 
 
-from ._utils import ETA_VEC, BETA_VEC, polylog, integrate
+from ._utils import ETA_VEC, BETA_VEC, polylog, integrate, nbinom_logpmf
 from fitree._trees._wrapper import VectorizedTrees
 
 jax.config.update("jax_enable_x64", True)
@@ -491,7 +491,7 @@ def jlogp_no_parent(
 
     lp = jax.lax.cond(
         observed,
-        lambda: jstats.nbinom.logpmf(  # pyright: ignore
+        lambda: nbinom_logpmf(  # pyright: ignore
             k=x,
             n=par["C_0"] * par["rho"],
             p=_pt(par["alpha"], par["beta"], par["lam"], t),
