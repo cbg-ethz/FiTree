@@ -146,24 +146,28 @@ def polylog(n, z):
 
 @jax.jit
 def integrate_by_parts(
-    t: jnp.ndarray, rr: jnp.ndarray, delta: jnp.ndarray, integral: jnp.ndarray
+    t: jnp.ndarray,
+    rr: jnp.ndarray,
+    delta: jnp.ndarray,
+    a: jnp.ndarray,
+    integral: jnp.ndarray,
 ):
     """Helper function for integrate function."""
 
     def I1():
-        return (rr + 1.0, (jnp.exp(delta * t) - 1.0) / delta)
+        return (rr + 1.0, (jnp.exp(delta * t + a) - jnp.exp(a)) / delta)
 
     def I2():
         return (
             rr + 1.0,
-            (jnp.power(t, rr) * jnp.exp(delta * t) - rr * integral) / delta,
+            (jnp.power(t, rr) * jnp.exp(delta * t + a) - rr * integral) / delta,
         )
 
     return jax.lax.cond(rr == 0.0, I1, I2)
 
 
 @jax.jit
-def integrate2(t: jnp.ndarray, r: jnp.ndarray, delta: jnp.ndarray):
+def integrate2(t: jnp.ndarray, r: jnp.ndarray, delta: jnp.ndarray, a: jnp.ndarray):
     """Helper function for integrate function."""
 
     def cond_fun(val):
@@ -172,7 +176,7 @@ def integrate2(t: jnp.ndarray, r: jnp.ndarray, delta: jnp.ndarray):
 
     def body_fun(val):
         rr, integral = val
-        return integrate_by_parts(t, rr, delta, integral)
+        return integrate_by_parts(t, rr, delta, a, integral)
 
     _, integral = jax.lax.while_loop(cond_fun, body_fun, (0.0, 0.0))
 
@@ -180,21 +184,21 @@ def integrate2(t: jnp.ndarray, r: jnp.ndarray, delta: jnp.ndarray):
 
 
 @jax.jit
-def integrate1(t: jnp.ndarray, r: jnp.ndarray, delta: jnp.ndarray):
+def integrate1(t: jnp.ndarray, r: jnp.ndarray, delta: jnp.ndarray, a: jnp.ndarray):
     """Helper function for integrate function."""
 
-    return jnp.power(t, r + 1.0) / (r + 1.0)
+    return jnp.power(t, r + 1.0) / (r + 1.0) * jnp.exp(a)
 
 
 @jax.jit
-def integrate(t: jnp.ndarray, r: jnp.ndarray, delta: jnp.ndarray):
+def integrate(t: jnp.ndarray, r: jnp.ndarray, delta: jnp.ndarray, a: jnp.ndarray):
     """This function implements the integral of the form
-    $$ \int_0^t s^r \exp(\delta * s) ds $$
+    $$ \int_0^t s^r \exp(\delta * s + a) ds $$
     using the method of integration by parts.
     r is a non-negative integer and delta is a real number.
     """
 
-    return jax.lax.cond(delta == 0.0, integrate1, integrate2, t, r, delta)
+    return jax.lax.cond(delta == 0.0, integrate1, integrate2, t, r, delta, a)
 
 
 def nbinom_logpmf(

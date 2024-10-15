@@ -38,6 +38,6 @@ def test_integrate():
         delta = jnp.array(test["delta"])
         expected = test["expected"]
 
-        result = integrate(t, r, delta)
+        result = integrate(t, r, delta, 0.0)
 
         assert jnp.allclose(result, expected, atol=1e-5), f"Test case {i + 1} failed: expected {expected}, got {result}"

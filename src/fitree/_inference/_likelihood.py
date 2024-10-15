@@ -30,8 +30,8 @@ def _case1_var1(t, r1, delta1, alpha2, beta2, lam2):
         jnp.power(t, -2.0 * r1 + 2.0)
         * jnp.exp(-2.0 * delta1 * t)
         * (
-            (1.0 + 2.0 * alpha2 * t) * integrate(t, r1 - 1.0, delta1)
-            - 2.0 * alpha2 * integrate(t, r1, delta1)
+            (1.0 + 2.0 * alpha2 * t) * integrate(t, r1 - 1.0, delta1, 0.0)
+            - 2.0 * alpha2 * integrate(t, r1, delta1, 0.0)
         )
     )
 
@@ -40,17 +40,33 @@ def _case1_var1(t, r1, delta1, alpha2, beta2, lam2):
 def _case1_var2(t, r1, delta1, alpha2, beta2, lam2):
     # Variance function for delta1 > lam2 != 0.0
 
-    return jnp.power(t, -2.0 * r1 + 2.0) * (
-        2.0
-        * alpha2
-        / lam2
-        * jnp.exp(-2.0 * (delta1 - lam2) * t)
-        * integrate(t, r1 - 1.0, delta1 - 2.0 * lam2)
-        - (alpha2 + beta2)
-        / lam2
-        * jnp.exp(-(2.0 * delta1 - lam2) * t)
-        * integrate(t, r1 - 1.0, delta1 - lam2)
-    )
+    def _v1():
+        # delta1 = 0.0
+        return jnp.power(t, -2.0 * r1 + 2.0) * (
+            2.0
+            * alpha2
+            / lam2
+            * jnp.exp(2.0 * lam2 * t)
+            * integrate(t, r1 - 1.0, -2.0 * lam2, 0.0)
+            - (alpha2 + beta2)
+            / lam2
+            * jnp.exp(lam2 * t)
+            * integrate(t, r1 - 1.0, -lam2, 0.0)
+        )
+
+    def _v2():
+        # delta1 != 0.0
+        return jnp.power(t, -2.0 * r1 + 2.0) * (
+            2.0
+            * alpha2
+            / lam2
+            * integrate(t, r1 - 1.0, delta1 - 2.0 * lam2, -2.0 * (delta1 - lam2) * t)
+            - (alpha2 + beta2)
+            / lam2
+            * integrate(t, r1 - 1.0, delta1 - lam2, -(2.0 * delta1 - lam2) * t)
+        )
+
+    return jax.lax.cond(delta1 == 0.0, _v1, _v2)
 
 
 @jax.jit
@@ -97,7 +113,15 @@ def _lp2_case1(
 
     gamma_mean = 1.0 / (delta1 - lam2)
     gamma_var = jax.lax.cond(
-        lam2 == 0.0, _case1_var1, _case1_var2, t, r1, delta1, alpha2, beta2, lam2
+        jnp.abs(lam2) < 1e-3,
+        _case1_var1,
+        _case1_var2,
+        t,
+        r1,
+        delta1,
+        alpha2,
+        beta2,
+        lam2,
     )
     gamma_scale = gamma_var / gamma_mean
     gamma_shape = gamma_mean / gamma_scale * nu2 * x1_tilde
@@ -132,10 +156,10 @@ def _case2_var1(t, r1, delta1, alpha2, beta2):
 
 @jax.jit
 def _case2_var2(t, r1, delta1, alpha2, beta2):
-    # Variance function for delta1 = 0.0 != lam2
+    # Variance function for delta1 = lam2 != 0.0
 
     return jnp.power(t, -2.0 * r1) * (
-        2.0 * alpha2 / delta1 * integrate(t, r1 - 1.0, -delta1)
+        2.0 * alpha2 / delta1 * integrate(t, r1 - 1.0, -delta1, 0.0)
         - (alpha2 + beta2) / delta1 * jnp.exp(-delta1 * t) * jnp.power(t, r1) / r1
     )
 
@@ -183,7 +207,7 @@ def _lp2_case2(
     beta2 = par2["beta"]
     gamma_mean = 1 / r1
     gamma_var = jax.lax.cond(
-        delta1 == 0.0, _case2_var1, _case2_var2, t, r1, delta1, alpha2, beta2
+        jnp.abs(delta1) < 1e-3, _case2_var1, _case2_var2, t, r1, delta1, alpha2, beta2
     )
     gamma_scale = gamma_var / gamma_mean
     gamma_shape = gamma_mean / gamma_scale * nu2 * x1_tilde
@@ -321,7 +345,7 @@ def _q_tilde(t: jnp.ndarray, C_s: jnp.ndarray, r: jnp.ndarray, delta: jnp.ndarra
     in Theorem 3 in the supplement.
     """
 
-    return integrate(t, r - 1.0, delta) / C_s
+    return integrate(t, r - 1.0, delta, 0.0) / C_s
 
 
 @jax.jit
@@ -455,7 +479,6 @@ def get_pars(tree: VectorizedTrees, i: int):
         "beta": tree.beta,
         "C_s": tree.C_s,
         "C_0": tree.C_0,
-        "observed": tree.observed[i],
     }
 
     pa_i = tree.parent_id[i]
@@ -471,7 +494,6 @@ def get_pars(tree: VectorizedTrees, i: int):
         "beta": tree.beta,
         "C_s": tree.C_s,
         "C_0": tree.C_0,
-        "observed": tree.observed[pa_i],
     }
 
     return par_pa, par_i
