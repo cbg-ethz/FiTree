@@ -122,6 +122,25 @@ def _lp2_case1(
 
 
 @jax.jit
+def _case2_var1(t, r1, delta1, alpha2, beta2):
+    # Variance function for delta1 = lam2 = 0.0
+
+    return jnp.power(t, -r1) * (
+        (1.0 + 2.0 * alpha2 * t) / r1 - alpha2 * jnp.power(t, -r1 + 2.0)
+    )
+
+
+@jax.jit
+def _case2_var2(t, r1, delta1, alpha2, beta2):
+    # Variance function for delta1 = 0.0 != lam2
+
+    return jnp.power(t, -2.0 * r1) * (
+        2.0 * alpha2 / delta1 * integrate(t, r1 - 1.0, -delta1)
+        - (alpha2 + beta2) / delta1 * jnp.exp(-delta1 * t) * jnp.power(t, r1) / r1
+    )
+
+
+@jax.jit
 def _lp2_case2(
     x1: jnp.ndarray,
     x2: jnp.ndarray,
@@ -160,18 +179,24 @@ def _lp2_case2(
     x1_tilde = (x1 + 1.0) * jnp.exp(-delta1 * t) * jnp.power(t, 1.0 - r1)
     x2_tilde = (x2 + 1.0) * jnp.exp(-delta1 * t) * jnp.power(t, 1.0 - r2)
 
-    log_rate = -0.691 * jnp.log(x1_tilde) + 2.973 * jnp.log(delta1 * t + eps)
-    rate = jnp.exp(log_rate)
+    alpha2 = par2["alpha"]
+    beta2 = par2["beta"]
+    gamma_mean = 1 / r1
+    gamma_var = jax.lax.cond(
+        delta1 == 0.0, _case2_var1, _case2_var2, t, r1, delta1, alpha2, beta2
+    )
+    gamma_scale = gamma_var / gamma_mean
+    gamma_shape = gamma_mean / gamma_scale * nu2 * x1_tilde
 
-    p2_temp = jstats.gamma.cdf(x2_tilde, a=nu2 / r1 * x1_tilde * rate, scale=1 / rate)
+    p2_temp = jstats.gamma.cdf(x2_tilde, a=gamma_shape, scale=gamma_scale)
 
     p2 = jnp.where(
-        pdf & (x2 > 0.0),
+        x2 > 0,
         p2_temp
         - jstats.gamma.cdf(
-            x2 * jnp.exp(-delta1 * t) * jnp.power(t, 1.0 - r2),
-            a=nu2 / r1 * x1_tilde * rate,
-            scale=1 / rate,
+            x2 * jnp.exp(-delta1 * t) * jnp.power(t, 1 - r2),
+            a=gamma_shape,
+            scale=gamma_scale,
         ),
         p2_temp,
     )
