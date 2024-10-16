@@ -1,4 +1,5 @@
 import pymc as pm
+import numpy as np
 import pytensor.tensor as pt
 from typing import Optional
 
@@ -102,7 +103,8 @@ def prior_normal(
 
 def prior_horseshoe(
     n_mutations: int,
-    tau: Optional[float] = None,
+    tau_scale: float = 1.0,
+    lambda_scale: float = 1.0,
 ) -> pm.Model:
     """Constructs PyMC model with horseshoe prior on the off-diagonal terms.
     Author: Pawel Czyz
@@ -123,9 +125,9 @@ def prior_horseshoe(
            which has shape (n_mutations, n_mutations)
     """
     with pm.Model() as model:  # type: ignore
-        tau_var = pm.HalfCauchy("tau", 1.0, observed=tau)
+        tau_var = pm.HalfCauchy("tau", tau_scale)
         lambdas_offdiag = pm.HalfCauchy(
-            "lambdas_offdiag", 1.0, shape=_offdiag_size(n_mutations)
+            "lambdas_offdiag", lambda_scale, shape=_offdiag_size(n_mutations)
         )
 
         # Reparametrization trick for efficiency
@@ -133,7 +135,7 @@ def prior_horseshoe(
         offdiag = z * tau_var * lambdas_offdiag
 
         # Construct diagonal terms explicitly
-        lambdas_diag = pm.HalfCauchy("lambdas_diag", 1.0, shape=n_mutations)
+        lambdas_diag = pm.HalfCauchy("lambdas_diag", lambda_scale, shape=n_mutations)
         z_diag = pm.Normal("_latent_diag", 0.0, 1.0, shape=n_mutations)
         diag = z_diag * tau_var * lambdas_diag
 
@@ -277,4 +279,89 @@ def prior_spike_and_slab_marginalized(
             construct_square_matrix(n_mutations, diag=diag, offdiag=offdiag_entries),
         )
 
+    return model
+
+
+def construct_square_matrix_with_mask(n: int, indices, entries):
+    # Create a square matrix of size n filled with zeros
+    mat = pt.zeros((n, n))
+
+    # Convert indices to tensor
+    indices = pt.as_tensor_variable(indices)
+
+    # Fill the matrix with the provided entries at the specified locations
+    mat = pt.set_subtensor(
+        mat[indices[:, 0], indices[:, 1]], entries  # pyright: ignore
+    )
+
+    # Get upper triangular indices (excluding diagonal)
+    upper_triangular_indices = pt.triu_indices(n, k=1)
+
+    # Stack the row and column indices to create pairs
+    upper_tri_pairs = pt.stack(
+        [upper_triangular_indices[0], upper_triangular_indices[1]], axis=1
+    )
+
+    # Compare each upper triangular pair with the provided indices
+    # Keep the ones that are not in the provided indices
+    is_in_indices = pt.any(
+        pt.all(
+            pt.eq(upper_tri_pairs[:, None, :], indices[None, :, :]),  # pyright: ignore
+            axis=-1,
+        ),
+        axis=1,
+    )
+
+    # Extract the indices that are not in the provided indices
+    missing_indices = upper_tri_pairs[~is_in_indices]  # pyright: ignore
+
+    # Set these missing indices to the negative sum of the diagonal elements
+    mat = pt.set_subtensor(
+        mat[missing_indices[:, 0], missing_indices[:, 1]],  # pyright: ignore
+        -(
+            mat[missing_indices[:, 0], missing_indices[:, 0]]  # pyright: ignore
+            + mat[missing_indices[:, 1], missing_indices[:, 1]]  # pyright: ignore
+        ),
+    )
+
+    return mat
+
+
+def prior_horseshoe_with_mask(
+    n_mutations: int,
+    indices: np.ndarray,
+    tau_scale: float = 1.0,
+    lambda_scale: float = 1.0,
+) -> pm.Model:
+    nr_entries = indices.shape[0]
+
+    with pm.Model() as model:  # type: ignore
+        tau_var = pm.HalfCauchy("tau", tau_scale)
+        lambdas = pm.HalfCauchy("lambdas", lambda_scale, shape=nr_entries)
+        # Reparametrization trick for efficiency
+        z = pm.Normal("_latent", 0.0, 1.0, shape=nr_entries)
+        entries = z * tau_var * lambdas
+        # Construct the theta matrix
+        pm.Deterministic(
+            "fitness_matrix",
+            construct_square_matrix_with_mask(n_mutations, indices, entries),
+        )
+
+    return model
+
+
+def prior_normal_with_mask(
+    n_mutations: int,
+    indices: np.ndarray,
+    mean: float = 0.0,
+    sigma: float = 1.0,
+) -> pm.Model:
+    nr_entries = indices.shape[0]
+
+    with pm.Model() as model:  # type: ignore
+        entries = pm.Normal("entries", mu=mean, sigma=sigma, shape=nr_entries)
+        pm.Deterministic(
+            "fitness_matrix",
+            construct_square_matrix_with_mask(n_mutations, indices, entries),
+        )
     return model
