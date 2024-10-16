@@ -11,6 +11,19 @@ jax.config.update("jax_enable_x64", True)
 
 
 @jax.jit
+def get_x_tilde(
+    x: jnp.ndarray,
+    delta: jnp.ndarray,
+    r: jnp.ndarray,
+    t: jnp.ndarray,
+    eps: float = 1e-64,
+):
+    x_tilde = jnp.exp(jnp.log(x + eps) - delta * t + (1.0 - r) * jnp.log(t))
+
+    return x_tilde
+
+
+@jax.jit
 def _pt(alpha: jnp.ndarray, beta: jnp.ndarray, lam: jnp.ndarray, t: jnp.ndarray):
     """This function computes the success probability
     of the negative Binomial distribution for the one-type
@@ -108,8 +121,8 @@ def _lp2_case1(
     alpha2 = par2["alpha"]
     beta2 = par2["beta"]
 
-    x1_tilde = (x1 + 1.0) * jnp.exp(-delta1 * t) * jnp.power(t, 1.0 - r1)
-    x2_tilde = (x2 + 1.0) * jnp.exp(-delta2 * t) * jnp.power(t, 1.0 - r2)
+    x1_tilde = get_x_tilde(x1 + 1.0, delta1, r1, t)
+    x2_tilde = get_x_tilde(x2 + 1.0, delta2, r2, t)
 
     gamma_mean = 1.0 / (delta1 - lam2)
     gamma_var = jax.lax.cond(
@@ -132,7 +145,7 @@ def _lp2_case1(
         pdf & (x2 > 0.0),
         p2_temp
         - jstats.gamma.cdf(
-            x2 * jnp.exp(-delta1 * t) * jnp.power(t, 1.0 - r2),
+            get_x_tilde(x2, delta2, r2, t),
             a=gamma_shape,
             scale=gamma_scale,
         ),
@@ -200,9 +213,8 @@ def _lp2_case2(
     r2 = par2["r"]
     nu2 = par2["nu"]
 
-    x1_tilde = (x1 + 1.0) * jnp.exp(-delta1 * t) * jnp.power(t, 1.0 - r1)
-    x2_tilde = (x2 + 1.0) * jnp.exp(-delta1 * t) * jnp.power(t, 1.0 - r2)
-
+    x1_tilde = get_x_tilde(x1 + 1.0, delta1, r1, t)
+    x2_tilde = get_x_tilde(x2 + 1.0, delta1, r2, t)
     alpha2 = par2["alpha"]
     beta2 = par2["beta"]
     gamma_mean = 1 / r1
@@ -218,7 +230,7 @@ def _lp2_case2(
         x2 > 0,
         p2_temp
         - jstats.gamma.cdf(
-            x2 * jnp.exp(-delta1 * t) * jnp.power(t, 1 - r2),
+            get_x_tilde(x2, delta1, r2, t),
             a=gamma_shape,
             scale=gamma_scale,
         ),
@@ -316,20 +328,21 @@ def _lp2_case3(
     r1 = par1["r"]
     delta2 = par2["delta"]
     r2 = par2["r"]
-    x1_tilde = (x1 + 1.0) * jnp.exp(-delta1 * t) * jnp.power(t, 1.0 - r1)
+    x1_tilde = get_x_tilde(x1 + 1.0, delta1, r1, t)
+    x2_tilde = get_x_tilde(x2 + 1.0, delta2, r2, t)
 
     def lp_func(theta):
         return jnp.exp(-_h(theta, par1, par2) * x1_tilde) / theta
 
-    def ilp(theta):
-        fp = jax.vmap(lp_func)(BETA_VEC / theta)
-        return jnp.dot(ETA_VEC, fp).real / theta
+    def ilp(xi):
+        fp = jax.vmap(lp_func)(BETA_VEC / xi)
+        return jnp.dot(ETA_VEC, fp).real / xi
 
-    p2_temp = ilp((x2 + 1.0) * jnp.exp(-delta2 * t) * jnp.power(t, 1.0 - r2))
+    p2_temp = ilp(x2_tilde)
 
     p2 = jnp.where(
         pdf & (x2 > 0.0),
-        p2_temp - ilp(x2 * jnp.exp(-delta2 * t) * jnp.power(t, 1.0 - r2)),
+        p2_temp - ilp(get_x_tilde(x2, delta2, r2, t)),
         p2_temp,
     )
 
@@ -582,7 +595,7 @@ def jlogp_one_tree(
         lambda: jlogp_w_parent(x1, x2, observed, t, par1, par2, eps),
     )
 
-    x2_tilde = x2 * jnp.exp(-par2["delta"] * t) * jnp.power(t, 1.0 - par2["r"])
+    x2_tilde = get_x_tilde(x2, par2["delta"], par2["r"], t)
     lt = -_q_tilde(t, par2["C_s"], par2["r"], par2["delta"]) * x2_tilde
 
     return lp + lt
