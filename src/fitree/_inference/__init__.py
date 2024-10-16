@@ -9,7 +9,10 @@ from ._pymc import (
     prior_horseshoe,
     prior_regularized_horseshoe,
     prior_spike_and_slab_marginalized,
+    prior_horseshoe_with_mask,
+    prior_normal_with_mask,
 )
+from ._initialization import recoverable_entries, greedy_init_fmat
 
 
 __all__ = [
@@ -22,4 +25,8 @@ __all__ = [
     "prior_horseshoe",
     "prior_regularized_horseshoe",
     "prior_spike_and_slab_marginalized",
+    "prior_horseshoe_with_mask",
+    "prior_normal_with_mask",
+    "recoverable_entries",
+    "greedy_init_fmat",
 ]

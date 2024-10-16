@@ -5,6 +5,8 @@ from ._prior import (
     prior_horseshoe,
     prior_regularized_horseshoe,
     prior_spike_and_slab_marginalized,
+    prior_horseshoe_with_mask,
+    prior_normal_with_mask,
 )
 
 __all__ = [
@@ -14,4 +16,6 @@ __all__ = [
     "prior_horseshoe",
     "prior_regularized_horseshoe",
     "prior_spike_and_slab_marginalized",
+    "prior_horseshoe_with_mask",
+    "prior_normal_with_mask",
 ]
