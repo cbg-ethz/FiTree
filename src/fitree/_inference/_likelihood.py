@@ -919,14 +919,18 @@ def compute_normalizing_constant(
         g = g_tilde_vec[i]
 
         log_pt += jax.lax.cond(
-            lam < 0.0,
-            lambda: -rho
-            * C_0
-            * t
-            / tau
-            * jnp.log(phi + (1 - phi) * jnp.exp(-g * tau / t) + eps),
-            lambda: -rho * C_0 * jnp.log(1 + phi * g + eps),
-        ) * jnp.where(trees.parent_id[i] == -1, 1.0, 0.0)
+            trees.parent_id[i] == -1,
+            lambda: jax.lax.cond(
+                lam < 0.0,
+                lambda: -rho
+                * C_0
+                * t
+                / tau
+                * jnp.log(phi + (1 - phi) * jnp.exp(-g * tau / t) + eps),
+                lambda: -rho * C_0 * jnp.log(1 + phi * g + eps),
+            ),
+            lambda: 0.0,
+        )
 
         return log_pt, None
 
