@@ -199,6 +199,12 @@ def _lp2_case1(
         p2_temp,
     )
 
+    p2 = jnp.where(
+        jnp.isnan(p2),
+        0.0,
+        p2,
+    )
+
     p2 = jnp.max(jnp.array([p2, 0.0]))
     lp2 = jnp.log(p2 + eps)
 
@@ -282,6 +288,12 @@ def _lp2_case2(
             scale=gamma_scale,
         ),
         p2_temp,
+    )
+
+    p2 = jnp.where(
+        jnp.isnan(p2),
+        0.0,
+        p2,
     )
 
     p2 = jnp.max(jnp.array([p2, 0.0]))
@@ -961,10 +973,6 @@ def jlogp(
     # Compute the normalized log-likelihood
     jlogp_normalized = (
         jlogp_unnormalized - jnp.log(normalizing_constant + eps) * trees.N_patients
-    )
-
-    jlogp_normalized = jnp.where(
-        jnp.isnan(jlogp_normalized), -jnp.inf, jlogp_normalized
     )
 
     return jlogp_normalized
