@@ -436,7 +436,7 @@ def _q_tilde(t: jnp.ndarray, C_s: jnp.ndarray, r: jnp.ndarray, delta: jnp.ndarra
     in Theorem 3 in the supplement.
     """
 
-    return integrate(t, r - 1.0, delta, 0.0) / C_s
+    return integrate(t, r - 1.0, delta, -jnp.log(C_s))
 
 
 @jax.jit
@@ -670,6 +670,9 @@ def jlogp_one_tree(
 ):
     x1 = x_vec[0]
     x2 = x_vec[1]
+    delta2 = par2["delta"]
+    r2 = par2["r"]
+    C_s = par2["C_s"]
 
     lp = jax.lax.cond(
         no_parent,
@@ -677,8 +680,12 @@ def jlogp_one_tree(
         lambda: jlogp_w_parent(x1, x2, observed, t, par1, par2, eps),
     )
 
-    x2_tilde = get_x_tilde(x2, par2["delta"], par2["r"], t)
-    lt = -_q_tilde(t, par2["C_s"], par2["r"], par2["delta"]) * x2_tilde
+    lt = -integrate(
+        t,
+        r2 - 1.0,
+        delta2,
+        jnp.log(x2) - jnp.log(C_s) - delta2 * t - (r2 - 1.0) * jnp.log(t),
+    )
 
     return lp + lt
 
