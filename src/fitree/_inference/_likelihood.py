@@ -10,6 +10,7 @@ from fitree._inference._utils import (
     ETA_VEC,
     BETA_VEC,
     polylog,
+    polylog_log_minus_z,
     integrate,
 )
 from fitree._trees._wrapper import VectorizedTrees
@@ -23,9 +24,8 @@ def get_x_tilde(
     delta: jnp.ndarray,
     r: jnp.ndarray,
     t: jnp.ndarray,
-    eps: float = 1e-64,
 ):
-    x_tilde = jnp.exp(jnp.log(x + eps) - delta * t + (1.0 - r) * jnp.log(t))
+    x_tilde = x * jnp.exp(-delta * t) * jnp.power(t, 1.0 - r)
 
     return x_tilde
 
@@ -259,11 +259,11 @@ def _lp2_case2(
     r1 = par1["r"]
     r2 = par2["r"]
     nu2 = par2["nu"]
+    alpha2 = par2["alpha"]
+    beta2 = par2["beta"]
 
     x1_tilde = get_x_tilde(x1 + 1.0, delta1, r1, t)
     x2_tilde = get_x_tilde(x2 + 1.0, delta1, r2, t)
-    alpha2 = par2["alpha"]
-    beta2 = par2["beta"]
     gamma_mean = 1 / r1
     gamma_var = jax.lax.cond(
         jnp.abs(delta1) < 1e-3, _case2_var1, _case2_var2, t, r1, delta1, alpha2, beta2
@@ -323,10 +323,8 @@ def _h(theta: jnp.ndarray, par1: dict, par2: dict):
             * jnp.power(phi2 * theta, gamma2)
             * jnp.pi
             / jnp.sin(jnp.pi * gamma2)
-            * jss.gamma(r1)
             / jnp.power(lam2, r1 - 1)
             * jnp.power(jnp.log(theta * phi2), r2 - 1)
-            / jss.gamma(r2)
         )
 
         return _h
@@ -375,21 +373,54 @@ def _lp2_case3(
     r1 = par1["r"]
     delta2 = par2["delta"]
     r2 = par2["r"]
+    rho2 = par2["rho"]
+    lam2 = par2["lam"]
+    phi2 = par2["phi"]
+    gamma2 = par2["gamma"]
     x1_tilde = get_x_tilde(x1 + 1.0, delta1, r1, t)
-    x2_tilde = get_x_tilde(x2 + 1.0, delta2, r2, t)
 
-    def lp_func(theta):
-        return jnp.exp(-_h(theta, par1, par2) * x1_tilde) / theta
+    def _log_theta(beta, z):
+        return jnp.log(beta) - jnp.log(z + eps) + delta2 * t
 
-    def ilp(xi):
-        fp = jax.vmap(lp_func)(BETA_VEC / xi)
-        return jnp.dot(ETA_VEC, fp).real / xi
+    def h1(beta, z):
+        _h = (
+            -rho2
+            * jss.gamma(r1)
+            / jnp.power(lam2, r1 - 1)
+            * polylog_log_minus_z(r1, _log_theta(beta, z) + jnp.log(phi2))
+        )
+        return _h * x1_tilde
 
-    p2_temp = ilp(x2_tilde)
+    def h2(beta, z):
+        _h = (
+            rho2
+            * jnp.power(phi2, gamma2)
+            * jnp.pi
+            / jnp.sin(jnp.pi * gamma2)
+            / jnp.power(lam2, r1 - 1)
+            * jnp.power(_log_theta(beta, z) + jnp.log(phi2), r2 - 1)
+            * jnp.power(beta, gamma2)
+            / jnp.power(t, r1 - 1)
+            * x1
+            / jnp.power(z + eps, gamma2)
+        )
+        return _h
+
+    def h(beta, z):
+        return jax.lax.cond(gamma2 == 0.0, h1, h2, beta, z)
+
+    def lp_func(eta, beta, z):
+        return jnp.exp(-h(beta, z)) * eta / beta
+
+    def ilp(z):
+        fp = jax.vmap(lp_func, in_axes=(0, 0, None))(ETA_VEC, BETA_VEC, z)
+        return jnp.sum(fp).real
+
+    p2_temp = ilp(x2 + 1.0)
 
     p2 = jnp.where(
         pdf & (x2 > 0.0),
-        p2_temp - ilp(get_x_tilde(x2, delta2, r2, t)),
+        p2_temp - ilp(x2),
         p2_temp,
     )
 

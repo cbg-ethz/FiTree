@@ -140,6 +140,29 @@ def polylog(n, z):
 
 
 @jax.jit
+def polylog_log_minus_z(n, log_minus_z):
+    """This function computes the approximation of the polylogarithm of order n at z
+    for positive integers n and large negative z. The approximation is based on
+    equation (11.1) in the technical report "The Computation of Polylogarithms" by
+    Wood, David C. (1992)
+
+    Here, the term log(1 - z) or log(-z) is passed as an argument.
+    """
+
+    max_k = jnp.floor(n / 2.0).astype(jnp.int32)
+
+    def body_fun(k, carry):
+        carry += (
+            altzeta(2.0 * k)
+            * jnp.power(log_minus_z, n - 2.0 * k)
+            / jss.gamma(n - 2.0 * k + 1.0)
+        )
+        return carry
+
+    return jax.lax.fori_loop(0, max_k + 1, body_fun, 0.0) * (-2.0)
+
+
+@jax.jit
 def integrate_by_parts(
     t: jnp.ndarray,
     rr: jnp.ndarray,
