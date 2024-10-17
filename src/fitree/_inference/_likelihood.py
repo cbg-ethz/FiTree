@@ -2,9 +2,16 @@ import jax
 import jax.numpy as jnp
 import jax.scipy.stats as jstats
 import jax.scipy.special as jss
+from jax import lax
+from jax._src.lax.lax import _const as _lax_const
+from jax._src.scipy.special import gammaln
 
-
-from ._utils import ETA_VEC, BETA_VEC, polylog, integrate, nbinom_logpmf
+from fitree._inference._utils import (
+    ETA_VEC,
+    BETA_VEC,
+    polylog,
+    integrate,
+)
 from fitree._trees._wrapper import VectorizedTrees
 
 jax.config.update("jax_enable_x64", True)
@@ -21,6 +28,46 @@ def get_x_tilde(
     x_tilde = jnp.exp(jnp.log(x + eps) - delta * t + (1.0 - r) * jnp.log(t))
 
     return x_tilde
+
+
+@jax.jit
+def nbinom_logpmf(
+    x: jnp.ndarray,
+    C_0: jnp.ndarray,
+    rho: jnp.ndarray,
+    alpha: jnp.ndarray,
+    beta: jnp.ndarray,
+    lam: jnp.ndarray,
+    t: jnp.ndarray,
+):
+    """This function computes the negative binomial log-likelihood
+    (See Lemma 1 in the supplement)
+    """
+
+    k = x
+    n = C_0 * rho
+    one = _lax_const(k, 1)
+    comb_term = lax.sub(
+        lax.sub(gammaln(lax.add(k, n)), gammaln(n)), gammaln(lax.add(k, one))
+    )
+    log_p = jax.lax.switch(
+        (jnp.sign(lam) + 1).astype(jnp.int32),
+        [
+            lambda: lax.log(-lam) - lax.log(beta - alpha * lax.exp(lam * t)),
+            lambda: -lax.log(1.0 + alpha * t),
+            lambda: lax.log(lam) - lax.log(alpha * lax.exp(lam * t) - beta),
+        ],
+    )
+    log_p = jnp.where(
+        log_p == -jnp.inf,
+        lax.log(lam) - lam * t * lax.log(alpha),
+        log_p,
+    )
+    log_1_p = lax.log1p(-jnp.exp(log_p))  # pyright: ignore
+
+    log_linear_term = lax.add(lax.mul(n, log_p), lax.mul(k, log_1_p))  # pyright: ignore
+    log_probs = lax.add(comb_term, log_linear_term)
+    return log_probs
 
 
 @jax.jit
@@ -527,9 +574,13 @@ def jlogp_no_parent(
     lp = jax.lax.cond(
         observed,
         lambda: nbinom_logpmf(  # pyright: ignore
-            k=x,
-            n=par["C_0"] * par["rho"],
-            p=_pt(par["alpha"], par["beta"], par["lam"], t),
+            x,
+            par["C_0"],
+            par["rho"],
+            par["alpha"],
+            par["beta"],
+            par["lam"],
+            t,
         ),
         lambda: jnp.log(
             jss.betainc(

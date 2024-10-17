@@ -2,11 +2,6 @@ import jax
 import jax.numpy as jnp
 import jax.scipy.special as jss
 from jax import config
-from jax import lax
-from jax._src.lax.lax import _const as _lax_const
-from jax._src.numpy.util import promote_args_inexact
-from jax._src.scipy.special import gammaln, xlogy
-from jax._src.typing import Array, ArrayLike
 
 config.update("jax_enable_x64", True)
 
@@ -199,20 +194,3 @@ def integrate(t: jnp.ndarray, r: jnp.ndarray, delta: jnp.ndarray, a: jnp.ndarray
     """
 
     return jax.lax.cond(delta == 0.0, integrate1, integrate2, t, r, delta, a)
-
-
-def nbinom_logpmf(
-    k: ArrayLike, n: ArrayLike, p: ArrayLike, loc: ArrayLike = 0
-) -> Array:
-    """Negative-binomial log probability mass function"""
-    k, n, p, loc = promote_args_inexact("nbinom.logpmf", k, n, p, loc)
-    one = _lax_const(k, 1)
-    y = lax.sub(k, loc)
-    comb_term = lax.sub(
-        lax.sub(gammaln(lax.add(y, n)), gammaln(n)), gammaln(lax.add(y, one))
-    )
-    log_linear_term = lax.add(
-        xlogy(n, p), lax.mul(y, lax.log1p(-p))
-    )  # Modified this line
-    log_probs = lax.add(comb_term, log_linear_term)
-    return jnp.where(lax.lt(k, loc), -jnp.inf, log_probs)
