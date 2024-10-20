@@ -881,7 +881,7 @@ def compute_g_tilde_vec(trees: VectorizedTrees) -> jnp.ndarray:
     at maximum time t_max. (See Theorem 3 in the supplement)
     """
 
-    g_tilde_vec = jnp.zeros(trees.node_id.shape)
+    g_tilde_vec = jnp.zeros_like(trees.node_id, dtype=jnp.float64)
 
     # Nodes to scan: reverse order of the nodes
     # This is to compute g_tilde in reverse topological order of
@@ -913,11 +913,9 @@ def compute_g_tilde_vec(trees: VectorizedTrees) -> jnp.ndarray:
 
 
 @jax.jit
-def compute_normalizing_constant(
-    trees: VectorizedTrees, eps: float = 1e-64, tau: float = 1e-2
-) -> jnp.ndarray:
-    """This function computes the normalizing constant for the
-    joint likelihood of the trees. (P(T_s < t_max) in Theorem 3)
+def _log_pt(trees: VectorizedTrees, eps: float = 1e-64, tau: float = 1e-2) -> float:
+    """This function computes the log probability P(T_s > t_max)
+    defined in Theorem 3.
     """
 
     g_tilde_vec = compute_g_tilde_vec(trees)
@@ -947,6 +945,20 @@ def compute_normalizing_constant(
         return log_pt, None
 
     log_pt, _ = jax.lax.scan(scan_fun, 0.0, trees.node_id)
+
+    return log_pt
+
+
+@jax.jit
+def compute_normalizing_constant(
+    trees: VectorizedTrees, eps: float = 1e-64, tau: float = 1e-2
+) -> jnp.ndarray:
+    """This function computes the normalizing constant for the
+    joint likelihood of the trees.
+    P(T_s < t_max) = 1 - P(T_s > t_max)
+    """
+
+    log_pt = _log_pt(trees, eps, tau)
 
     return -jnp.expm1(log_pt)
 
