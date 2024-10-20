@@ -948,7 +948,7 @@ def compute_normalizing_constant(
 
     log_pt, _ = jax.lax.scan(scan_fun, 0.0, trees.node_id)
 
-    return 1.0 - jnp.exp(log_pt)
+    return -jnp.expm1(log_pt)
 
 
 @jax.jit
