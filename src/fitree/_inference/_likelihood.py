@@ -5,6 +5,7 @@ import jax.scipy.special as jss
 from jax import lax
 from jax._src.lax.lax import _const as _lax_const
 from jax._src.scipy.special import gammaln
+from jax.scipy.integrate import trapezoid
 
 from fitree._inference._utils import (
     ETA_VEC,
@@ -303,55 +304,6 @@ def _lp2_case2(
 
 
 @jax.jit
-def _h(theta: jnp.ndarray, par1: dict, par2: dict):
-    """This function computes the h function for the conditional
-    laplace transform given by Theorem 2 and Proposition 1 in the supplement.
-    """
-
-    delta1 = par1["delta"]
-    rho2 = par2["rho"]
-    lam2 = par2["lam"]
-    r1 = par1["r"]
-    r2 = par2["r"]
-    nu2 = par2["nu"]
-    phi2 = par2["phi"]
-    gamma2 = par2["gamma"]
-
-    def h1(theta):
-        return nu2 * theta / (delta1 - lam2)
-
-    def h2(theta):
-        return nu2 * theta / r1
-
-    def h31(theta):
-        _h = (
-            -rho2 * jss.gamma(r1) / jnp.power(lam2, r1 - 1) * polylog(r1, -phi2 * theta)
-        )
-        return _h
-
-    def h32(theta):
-        _h = (
-            rho2
-            * jnp.power(phi2 * theta, gamma2)
-            * jnp.pi
-            / jnp.sin(jnp.pi * gamma2)
-            / jnp.power(lam2, r1 - 1)
-            * jnp.power(jnp.log(theta * phi2), r2 - 1)
-        )
-
-        return _h
-
-    def h3(theta):
-        return jax.lax.cond(gamma2 == 0.0, h31, h32, theta)
-
-    lam_diff = lam2 - delta1
-
-    return jax.lax.switch(
-        (jnp.sign(lam_diff) + 1).astype(jnp.int32), [h1, h2, h3], theta
-    )
-
-
-@jax.jit
 def _lp2_case3(
     x1: jnp.ndarray,
     x2: jnp.ndarray,
@@ -440,6 +392,176 @@ def _lp2_case3(
     lp2 = jnp.log(p2 + eps)
 
     return lp2
+
+
+@jax.jit
+def _h(theta: jnp.ndarray, par1: dict, par2: dict):
+    """This function computes the h function for the conditional
+    laplace transform given by Theorem 2 and Proposition 1 in the supplement.
+    """
+
+    delta1 = par1["delta"]
+    rho2 = par2["rho"]
+    lam2 = par2["lam"]
+    r1 = par1["r"]
+    r2 = par2["r"]
+    nu2 = par2["nu"]
+    phi2 = par2["phi"]
+    gamma2 = par2["gamma"]
+
+    def h1(theta):
+        return nu2 * theta / (delta1 - lam2)
+
+    def h2(theta):
+        return nu2 * theta / r1
+
+    def h31(theta):
+        _h = (
+            -rho2 * jss.gamma(r1) / jnp.power(lam2, r1 - 1) * polylog(r1, -phi2 * theta)
+        )
+        return _h
+
+    def h32(theta):
+        _h = (
+            rho2
+            * jnp.power(phi2 * theta, gamma2)
+            * jnp.pi
+            / jnp.sin(jnp.pi * gamma2)
+            / jnp.power(lam2, r1 - 1)
+            * jnp.power(jnp.log(theta * phi2), r2 - 1)
+        )
+
+        return _h
+
+    def h3(theta):
+        return jax.lax.cond(gamma2 == 0.0, h31, h32, theta)
+
+    lam_diff = lam2 - delta1
+
+    return jax.lax.switch(
+        (jnp.sign(lam_diff) + 1).astype(jnp.int32), [h1, h2, h3], theta
+    )
+
+
+@jax.jit
+def _dh_0(par1: dict, par2: dict):
+    delta1 = par1["delta"]
+    r1 = par1["r"]
+    nu2 = par2["nu"]
+    lam2 = par2["lam"]
+    gamma2 = par2["gamma"]
+    lam_diff = lam2 - delta1
+
+    def dh1():
+        return nu2 / (delta1 - lam2)
+
+    def dh2():
+        return nu2 / r1
+
+    def dh3():
+        return nu2 * jss.gamma(r1) / jnp.power(lam2 * (1 - gamma2), r1)
+
+    return jax.lax.switch((jnp.sign(lam_diff) + 1).astype(jnp.int32), [dh1, dh2, dh3])
+
+
+# @jax.jit
+# def compute_dg0_vec(trees: VectorizedTrees) -> jnp.ndarray:
+#     """This function computes the g'(0) for all nodes.
+#     """
+
+#     dg0_vec = jnp.zeros_like(trees.node_id, dtype=jnp.float64)
+
+#     def scan_fun(dg0_vec, i):
+
+#         pa_i = trees.parent_id[i]
+#         par1, par2 = get_pars(trees, i)
+#         dh0_i = _dh_0(par1, par2)
+#         dg0_i = jax.lax.cond(
+#             pa_i == -1,
+#             lambda: dh0_i,
+#             lambda: dg0_vec[pa_i] * dh0_i,
+#         )
+#         dg0_vec = dg0_vec.at[i].set(dg0_i)
+#         return dg0_vec, None
+
+#     dg0_vec, _ = jax.lax.scan(scan_fun, dg0_vec, trees.node_id)
+
+#     return dg0_vec
+
+
+@jax.jit
+def compute_expected_C_tilde(trees: VectorizedTrees):
+    """This function computes the expected C_tilde vector."""
+
+    dg0_vec = jnp.zeros_like(trees.node_id, dtype=jnp.float64)
+    expected_C_tilde_vec = (
+        trees.C_0 * trees.rho * (trees.phi - (trees.lam < 0).astype(jnp.float64))
+    )
+
+    def scan_fun(carry, i):
+        dg0_vec, expected_C_tilde_vec = carry
+        pa_i = trees.parent_id[i]
+        par1, par2 = get_pars(trees, i)
+        dh0_i = _dh_0(par1, par2)
+        dg0_i = jax.lax.cond(
+            pa_i == -1,
+            lambda: dh0_i,
+            lambda: dg0_vec[pa_i] * dh0_i,
+        )
+        dg0_vec = dg0_vec.at[i].set(dg0_i)
+
+        expected_C_tilde_i = jax.lax.cond(
+            pa_i == -1,
+            lambda: expected_C_tilde_vec[i],
+            lambda: expected_C_tilde_vec[pa_i],
+        )
+        expected_C_tilde_vec = expected_C_tilde_vec.at[i].set(expected_C_tilde_i)
+
+        return (dg0_vec, expected_C_tilde_vec), None
+
+    (dg0_vec, expected_C_tilde_vec), _ = jax.lax.scan(
+        scan_fun, (dg0_vec, expected_C_tilde_vec), trees.node_id
+    )
+
+    # subclone_sizes = expected_C_tilde_vec * time_scale_vec * dg0_vec
+
+    # return subclone_sizes  # pyright: ignore
+
+    expected_C_tilde_vec *= dg0_vec
+
+    return expected_C_tilde_vec
+
+
+@jax.jit
+def expected_tumor_size(trees: VectorizedTrees):
+    """This function computes the expected tumor size
+    for the cohort at any given time t.
+    """
+
+    expected_C_tilde_vec = compute_expected_C_tilde(trees)
+
+    def int_func(t):
+        time_scale_vec = jnp.exp(trees.delta * t) * jnp.power(t, trees.r - 1.0)
+
+        # expected tumor size at time t
+        expected_C_t = (expected_C_tilde_vec * time_scale_vec).sum()
+
+        # compute p(t_s | tumor size)
+        def scan_fun(carry, i):
+            q_tilde_i = _q_tilde(t, trees.C_s, trees.r[i], trees.delta[i])
+            carry += q_tilde_i * expected_C_tilde_vec[i]
+            return carry, None
+
+        pt, _ = jax.lax.scan(scan_fun, 0.0, trees.node_id)
+        pt = expected_C_t / trees.C_s * jnp.exp(-pt)
+
+        return pt * expected_C_t
+
+    t_vec = jnp.linspace(0.0, 200.0, 1000)
+    int_vec = jax.vmap(int_func)(t_vec)
+    int_vec = jnp.nan_to_num(int_vec)
+
+    return trapezoid(int_vec, t_vec)
 
 
 @jax.jit
