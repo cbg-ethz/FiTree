@@ -22,13 +22,16 @@ def recoverable_entries(
     to_keep = []
 
     for i, j in zip(*all_indices):
-        indices = jnp.where(
-            jnp.all(trees.genotypes[:, [i, j]], axis=1)
-            # * (trees.genotypes.sum(axis=1) == 2)
-        )[0]
-        if len(indices) > 0:
-            if np.max(nr_observed[indices]) > nr_observed_threshold:
-                to_keep.append((i, j))
+        if i != j:
+            indices = jnp.where(
+                jnp.all(trees.genotypes[:, [i, j]], axis=1)
+                # * (trees.genotypes.sum(axis=1) == 2)
+            )[0]
+            if len(indices) > 0:
+                if np.max(nr_observed[indices]) > nr_observed_threshold:
+                    to_keep.append((i, j))
+        else:
+            to_keep.append((i, j))
 
     return np.array(to_keep)
 
@@ -88,6 +91,8 @@ def greedy_init_fmat(
             jnp.all(trees.genotypes[:, [i, j]], axis=1)
             * (nr_mut_present == np.where(i == j, 1, 2))
         )[0]
+        if i == j:
+            F_mat[i, j] = optim_f_ij(i, j, trees, F_mat, indices, eps)
         if np.max(nr_observed[indices]) > nr_observed_threshold:
             F_mat[i, j] = optim_f_ij(i, j, trees, F_mat, indices, eps)
         if i != j and F_mat[i, j] == 0:
