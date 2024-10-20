@@ -9,18 +9,19 @@ class TumorTreeCohort:
         self,
         name: str,
         trees: list[TumorTree] | Any = None,
-        n_mutations: int = 0,
-        N_trees: int = 0,
-        N_patients: int = 0,
-        mu_vec: np.ndarray | None = None,
-        common_beta: float | None = None,
-        C_0: int | float | None = None,
-        C_seq: int | float | None = None,
-        C_sampling: int | float | None = None,
-        t_max: float | None = None,
+        n_mutations: int | Any = 0,
+        N_trees: int | Any = 0,
+        N_patients: int | Any = 0,
+        mu_vec: np.ndarray | Any = None,
+        common_beta: float | Any = None,
+        C_0: int | float | Any = None,
+        C_seq: int | float | Any = None,
+        C_sampling: int | float | Any = None,
+        t_max: float | Any = None,
         mutation_labels: list | Any = None,
         tree_labels: list | Any = None,
         patient_labels: list | Any = None,
+        lifetime_risk: float | Any = None,
     ) -> None:
         self.name = name
         self.trees = trees
@@ -41,6 +42,13 @@ class TumorTreeCohort:
         self.mutation_labels = mutation_labels
         self.tree_labels = tree_labels
         self.patient_labels = patient_labels
+
+        if lifetime_risk is not None:
+            # check if lifetime_risk falls within [0, 1]
+            if lifetime_risk < 0 or lifetime_risk > 1:
+                raise ValueError("lifetime_risk must be in [0, 1]")
+
+        self.lifetime_risk = lifetime_risk
 
         self._check_trees()
 
@@ -87,3 +95,7 @@ class TumorTreeCohort:
             observed_mutations.update(tree.get_mutation_ids())
 
         return observed_mutations
+
+    def compute_mean_std_tumor_size(self) -> tuple[float, float]:
+        tumor_sizes = np.array([tree.tumor_size for tree in self.trees])
+        return tumor_sizes.mean(), tumor_sizes.std()

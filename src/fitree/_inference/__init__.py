@@ -11,6 +11,7 @@ from ._pymc import (
     prior_spike_and_slab_marginalized,
     prior_horseshoe_with_mask,
     prior_normal_with_mask,
+    prior_fitree,
 )
 from ._initialization import recoverable_entries, greedy_init_fmat
 
@@ -27,6 +28,7 @@ __all__ = [
     "prior_spike_and_slab_marginalized",
     "prior_horseshoe_with_mask",
     "prior_normal_with_mask",
+    "prior_fitree",
     "recoverable_entries",
     "greedy_init_fmat",
 ]

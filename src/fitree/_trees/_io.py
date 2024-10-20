@@ -55,6 +55,7 @@ def save_cohort_to_json(cohort: TumorTreeCohort, path: str) -> None:
         "mutation_labels": cohort.mutation_labels,
         "tree_labels": cohort.tree_labels,
         "patient_labels": cohort.patient_labels,
+        "lifetime_risk": cohort.lifetime_risk,
         "trees": serialized_trees,
     }
 
@@ -105,6 +106,7 @@ def load_cohort_from_json(path: str) -> TumorTreeCohort:
         mutation_labels=data["mutation_labels"],
         tree_labels=data["tree_labels"],
         patient_labels=data["patient_labels"],
+        lifetime_risk=data["lifetime_risk"],
     )
 
     return cohort

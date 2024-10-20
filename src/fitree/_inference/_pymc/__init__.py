@@ -7,6 +7,7 @@ from ._prior import (
     prior_spike_and_slab_marginalized,
     prior_horseshoe_with_mask,
     prior_normal_with_mask,
+    prior_fitree,
 )
 
 __all__ = [
@@ -18,4 +19,5 @@ __all__ = [
     "prior_spike_and_slab_marginalized",
     "prior_horseshoe_with_mask",
     "prior_normal_with_mask",
+    "prior_fitree",
 ]

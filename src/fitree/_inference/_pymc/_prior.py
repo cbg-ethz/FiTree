@@ -3,6 +3,8 @@ import numpy as np
 import pytensor.tensor as pt
 from typing import Optional
 
+from fitree._trees import TumorTreeCohort
+
 
 def construct_square_matrix(n: int, diag, offdiag):
     """Constructs a square matrix from the diagonal and upper-triangular
@@ -364,4 +366,67 @@ def prior_normal_with_mask(
             "fitness_matrix",
             construct_square_matrix_with_mask(n_mutations, indices, entries),
         )
+    return model
+
+
+def construct_fmat(n, entries):
+    # Create a square matrix of size n filled with zeros
+    mat = pt.zeros((n, n))
+
+    # Set the upper-triangular off-diagonal elements
+    upper_triangular_indices = pt.triu_indices(n, k=0)
+    mat = pt.set_subtensor(
+        mat[upper_triangular_indices], entries  # pyright: ignore
+    )  # Set the upper-triangular values
+
+    return mat
+
+
+def prior_normal_fmat(
+    n_mutations: int,
+    mean: float = 0.0,
+    sigma: float = 1.0,
+) -> pm.Model:
+    nr_entries = n_mutations * (n_mutations + 1) // 2
+
+    with pm.Model() as model:
+        entries = pm.Normal("entries", mu=mean, sigma=sigma, shape=nr_entries)
+        pm.Deterministic(
+            "fitness_matrix",
+            construct_fmat(n_mutations, entries),
+        )
+
+    return model
+
+
+def prior_fitree(
+    trees: TumorTreeCohort,
+    fmat_prior_mean: float = 0.0,
+    fmat_prior_sigma: float = 1.0,
+) -> pm.Model:
+    mean_tumor_size, std_tumor_size = trees.compute_mean_std_tumor_size()
+    lnorm_mu = np.log(mean_tumor_size) - 0.5 * np.log(
+        1 + std_tumor_size**2 / mean_tumor_size**2
+    )
+    lnorm_sigma = np.sqrt(np.log(1 + std_tumor_size**2 / mean_tumor_size**2))
+    lnorm_tau = 1 / lnorm_sigma**2
+
+    lnorm_mu = pt.as_tensor(lnorm_mu)
+    lnorm_tau = pt.as_tensor(lnorm_tau)
+    lifetime_risk = pt.as_tensor(trees.lifetime_risk)
+    nr_successes = pt.as_tensor(trees.N_patients)
+
+    model = prior_normal_fmat(
+        n_mutations=trees.n_mutations,
+        mean=fmat_prior_mean,
+        sigma=fmat_prior_sigma,
+    )
+
+    with model:
+        # Log-normal prior on the tumor size scaling factor C_sampling
+        pm.Lognormal("C_sampling", mu=lnorm_mu, tau=lnorm_tau)
+
+        # Negative binomial prior on the number of negative samples
+        pm.NegativeBinomial("nr_neg_samples", n=nr_successes, p=lifetime_risk)
+
     return model

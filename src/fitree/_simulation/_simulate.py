@@ -2,7 +2,7 @@ import numpy as np
 import joblib
 
 from anytree import PreOrderIter
-from typing import Tuple
+from typing import Tuple, Any
 
 from fitree._trees import Subclone, TumorTree, TumorTreeCohort
 from ._utils import _expand_tree, _sample_cells, _truncate_tree
@@ -11,18 +11,18 @@ from ._utils import _expand_tree, _sample_cells, _truncate_tree
 def _generate_one_tree(
     rng: np.random.Generator,
     n_mutations: int,
-    mu_vec: np.ndarray,
-    F_mat: np.ndarray,
-    common_beta: float = 1.0,
-    C_0: int | float | np.ndarray = 1e5,
-    C_seq: int | np.ndarray = 1e4,
-    C_sampling: int | float | np.ndarray = 1e9,
-    tau: float = 1e-3,
-    t_max: float = 100,
-    rule: str = "parallel",
-    k_repeat: int = 0,
-    k_multiple: int = 1,
-) -> Tuple[Subclone, float]:
+    mu_vec: np.ndarray | Any,
+    F_mat: np.ndarray | Any,
+    common_beta: float | Any = 1.0,
+    C_0: int | Any = 1e5,
+    C_seq: int | Any = 1e4,
+    C_sampling: int | Any = 1e9,
+    tau: float | Any = 1e-3,
+    t_max: float | Any = 100,
+    rule: str | Any = "parallel",
+    k_repeat: int | Any = 0,
+    k_multiple: int | Any = 1,
+) -> Tuple[Subclone, float] | Any:
     """
     Generate one tree with the given number of mutations and the given
     mutation rate vector and fitness matrix.
@@ -140,19 +140,19 @@ def _generate_valid_tree(
     rng: np.random.Generator,
     i: int,
     n_mutations: int,
-    mu_vec: np.ndarray,
-    F_mat: np.ndarray,
-    common_beta: float = 1.0,
-    C_0: int | float | np.ndarray = 1e5,
-    C_seq: int | np.ndarray = 1e4,
-    C_sampling: int | float | np.ndarray = 1e9,
-    tau: float = 1e-3,
-    t_max: float = 100,
-    rule: str = "parallel",
-    k_repeat: int = 0,
-    k_multiple: int = 1,
-    return_time: bool = False,
-) -> Tuple[Subclone, float]:
+    mu_vec: np.ndarray | Any,
+    F_mat: np.ndarray | Any,
+    common_beta: float | Any = 1.0,
+    C_0: int | Any = 1e5,
+    C_seq: int | Any = 1e4,
+    C_sampling: int | Any = 1e9,
+    tau: float | Any = 1e-3,
+    t_max: float | Any = 100,
+    rule: str | Any = "parallel",
+    k_repeat: int | Any = 0,
+    k_multiple: int | Any = 1,
+    return_time: bool | Any = False,
+) -> Tuple[Subclone, float] | Any:
     # Generate a tree and ensure that the sampling event occurs
     # before the maximum time t_max
     while True:
@@ -186,20 +186,20 @@ def generate_trees(
     rng: np.random.Generator,
     n_mutations: int,
     N_trees: int,
-    mu_vec: np.ndarray,
-    F_mat: np.ndarray,
-    common_beta: float = 1.0,
-    C_0: int | float | np.ndarray = 1e5,
-    C_seq: int | np.ndarray = 1e4,
-    C_sampling: int | float | np.ndarray = 1e9,
-    tau: float = 1e-3,
-    t_max: float = 100,
-    rule: str = "parallel",
-    k_repeat: int = 0,
-    k_multiple: int = 1,
-    return_time: bool = False,
-    use_joblib: bool = False,
-    n_jobs: int = -1,
+    mu_vec: np.ndarray | Any,
+    F_mat: np.ndarray | Any,
+    common_beta: float | Any = 1.0,
+    C_0: int | Any = 1e5,
+    C_seq: int | Any = 1e4,
+    C_sampling: int | Any = 1e9,
+    tau: float | Any = 1e-3,
+    t_max: float | Any = 100,
+    rule: str | Any = "parallel",
+    k_repeat: int | Any = 0,
+    k_multiple: int | Any = 1,
+    return_time: bool | Any = False,
+    use_joblib: bool | Any = False,
+    n_jobs: int | Any = -1,
 ) -> TumorTreeCohort:
     """
     Generate a list of trees with the given number of mutations and the given
