@@ -4,10 +4,19 @@ import matplotlib.pyplot as plt
 
 
 def plot_fmat(
-    F_mat: np.ndarray, mutation_labels: list | None = None, figsize: tuple = (8, 6)
+    F_mat: np.ndarray,
+    mutation_labels: list | None = None,
+    to_sort: bool = True,
+    figsize: tuple = (8, 6),
 ) -> None:
     if mutation_labels is None:
         mutation_labels = [f"M{i}" for i in range(F_mat.shape[1])]
+
+    F_mat = F_mat + F_mat.T - np.diag(np.diag(F_mat))
+    if to_sort:
+        idx = np.argsort(np.diag(F_mat))[::-1]
+        F_mat = F_mat[idx][:, idx]
+        mutation_labels = [mutation_labels[i] for i in idx]
 
     F_mat = np.transpose(F_mat)
 
@@ -80,3 +89,69 @@ def plot_fmat_posterior(
     plt.tight_layout()
     plt.suptitle("Posterior of fitness matrix F", fontsize=20)
     plt.subplots_adjust(top=0.9)
+
+
+def plot_epistasis(
+    F_mat: np.ndarray,
+    mutation_labels: list | None = None,
+    to_sort: bool = True,
+    figsize: tuple = (8, 6),
+) -> None:
+    if mutation_labels is None:
+        mutation_labels = [f"M{i}" for i in range(F_mat.shape[1])]
+
+    # Sort the rows and columns of epistasis based on diagonal elements
+    F_mat = F_mat + F_mat.T - np.diag(np.diag(F_mat))
+    if to_sort:
+        idx = np.argsort(np.diag(F_mat))[::-1]
+        F_mat = F_mat[idx][:, idx]
+        mutation_labels = [mutation_labels[i] for i in idx]
+
+    base_effects = np.diag(F_mat).reshape(-1, 1)
+
+    n_mutations = F_mat.shape[1]
+    epistasis = F_mat.copy()
+    for i in range(n_mutations):
+        for j in range(i, n_mutations):
+            epistasis[i, j] += F_mat[i, i] + F_mat[j, j]
+
+    epistasis = np.round(np.transpose(epistasis), 2)
+
+    mask = np.triu(np.ones_like(epistasis, dtype=bool), k=0)
+
+    cmap = sns.diverging_palette(230, 20, as_cmap=True)
+
+    fig, axes = plt.subplots(
+        1,
+        2,
+        figsize=figsize,
+        gridspec_kw={"width_ratios": [2, n_mutations], "wspace": 0.5},
+    )
+    sns.set_theme(style="white")
+
+    sns.heatmap(
+        base_effects,
+        cmap=cmap,
+        annot=True,
+        cbar=False,
+        yticklabels=mutation_labels,
+        linewidths=0.5,
+        center=0,
+        ax=axes[0],
+    )
+    axes[0].set_title("Base Effects", fontsize=14)
+
+    sns.heatmap(
+        epistasis,
+        mask=mask,
+        cmap=cmap,
+        annot=True,
+        xticklabels=mutation_labels[:-1] + [""],
+        yticklabels=[""] + mutation_labels[1:],
+        linewidths=0.5,
+        cbar_kws={"shrink": 0.5},
+        vmax=0.3,
+        center=0,
+        ax=axes[1],
+    )
+    axes[1].set_title("Epistasis", fontsize=14)
