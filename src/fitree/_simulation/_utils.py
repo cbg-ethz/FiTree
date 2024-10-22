@@ -30,13 +30,28 @@ def _sample_cells(rng: np.random.Generator, tree: Subclone, C_seq: int) -> Subcl
     next(node_iter)  # skip the root
     node_iter = list(node_iter)
     cell_numbers = np.array([node.cell_number for node in node_iter])
+    nonzero_idx = np.where(cell_numbers > 0)[0].astype(int)
+    nodes_to_sample = [node_iter[idx] for idx in nonzero_idx]
+
     total_cell_number = np.sum(cell_numbers)
     C_seq = np.min([C_seq, total_cell_number])
-    seq_cell_numbers = rng.multivariate_hypergeometric(cell_numbers, int(C_seq))
+    if total_cell_number > 1e9:
+        # scale both C_seq and cell_numbers to bypass issues with large numbers
+        # in multivariate_hypergeometric
+        ndigits = int(np.log10(total_cell_number))
+        C_seq_factor = 10 ** (ndigits - 8)
+        C_seq = int(C_seq / C_seq_factor)
+        cell_numbers = (cell_numbers / C_seq_factor).astype(int)
+    else:
+        C_seq_factor = 1
+
+    seq_cell_numbers = rng.multivariate_hypergeometric(
+        cell_numbers[nonzero_idx], int(C_seq)
+    )
 
     # Assign the sampled cell numbers to the tree
-    for idx, node in enumerate(node_iter):
-        node.seq_cell_number = seq_cell_numbers[idx]
+    for idx, node in enumerate(nodes_to_sample):
+        node.seq_cell_number = seq_cell_numbers[idx] * C_seq_factor
 
     return tree
 
