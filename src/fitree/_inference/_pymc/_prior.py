@@ -427,6 +427,9 @@ def prior_fitree(
         pm.Lognormal("C_sampling", mu=lnorm_mu, tau=lnorm_tau)
 
         # Negative binomial prior on the number of negative samples
-        pm.NegativeBinomial("nr_neg_samples", n=nr_successes, p=lifetime_risk)
+        if trees.lifetime_risk == 1.0:
+            pm.Deterministic("nr_neg_samples", pt.as_tensor(0, dtype=pt.lscalar))
+        else:
+            pm.NegativeBinomial("nr_neg_samples", n=nr_successes, p=lifetime_risk)
 
     return model
