@@ -68,6 +68,7 @@ def optim_f_ij(i, j, trees, F_mat, indices, eps=1e-64):
         lambda f_vec: np.array(logp_f_vec(f_vec)),
         0.0,
         method="COBYQA",
+        bounds=[(-1, 1)],
     )
 
     return res.x[0]
@@ -91,6 +92,8 @@ def greedy_init_fmat(
             jnp.all(trees.genotypes[:, [i, j]], axis=1)
             * (nr_mut_present == np.where(i == j, 1, 2))
         )[0]
+        if len(indices) == 0:
+            continue
         if i == j:
             F_mat[i, j] = optim_f_ij(i, j, trees, F_mat, indices, eps)
         if np.max(nr_observed[indices]) > nr_observed_threshold:
