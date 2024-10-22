@@ -9,8 +9,8 @@ from ._trees import (
     save_vectorized_trees_npz,
     load_vectorized_trees_npz,
 )
-from ._simulation import generate_trees, sample_spike_and_slab
-from ._plot import plot_fmat, plot_fmat_posterior, plot_tree
+from ._simulation import generate_trees, sample_spike_and_slab, generate_fmat
+from ._plot import plot_fmat, plot_fmat_posterior, plot_epistasis, plot_tree
 from ._inference import (
     jlogp,
     update_params,
@@ -40,8 +40,10 @@ __all__ = [
     "load_vectorized_trees_npz",
     "generate_trees",
     "sample_spike_and_slab",
+    "generate_fmat",
     "plot_fmat",
     "plot_fmat_posterior",
+    "plot_epistasis",
     "plot_tree",
     "jlogp",
     "update_params",
