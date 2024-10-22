@@ -134,6 +134,7 @@ def plot_epistasis(
         cmap=cmap,
         annot=True,
         cbar=False,
+        xticklabels=[""],
         yticklabels=mutation_labels,
         linewidths=0.5,
         center=0,
