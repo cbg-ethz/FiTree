@@ -252,7 +252,7 @@ def generate_trees(
     seeds = rng.integers(0, 2**32 - 1, size=N_trees)
 
     if use_joblib:
-        trees = joblib.Parallel(n_jobs=n_jobs)(
+        trees = joblib.Parallel(n_jobs=n_jobs, backend="threading")(
             joblib.delayed(_generate_valid_tree)(
                 rng=np.random.default_rng(seeds[i]),
                 i=i,

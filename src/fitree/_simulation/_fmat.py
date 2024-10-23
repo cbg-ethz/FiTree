@@ -46,7 +46,7 @@ def generate_fmat(
     n_mutations: int,
     base_mean: float = 0.0,
     base_sigma: float = 0.5,
-    base_sparsity: float = 0.7,
+    base_sparsity: float = 0.3,
     epis_mean: float = 0.0,
     epis_sigma: float = 1.0,
     epis_sparsity: float = 0.5,
@@ -54,7 +54,7 @@ def generate_fmat(
 ) -> np.ndarray:
     # Sample the baseline fitness effects using spike-and-slab
     diag = rng.normal(loc=base_mean, scale=base_sigma, size=n_mutations)
-    diag = np.where(rng.uniform(size=diag.shape) < base_sparsity, diag, 0.0)
+    diag = np.where(rng.uniform(size=diag.shape) > base_sparsity, diag, 0.0)
 
     # Assign positive fitness effects to a fraction of the mutations
     diag = np.where(diag > 0, -diag, diag)
@@ -68,7 +68,7 @@ def generate_fmat(
     epis = rng.normal(
         loc=epis_mean, scale=epis_sigma, size=n_mutations * (n_mutations - 1) // 2
     )
-    epis = np.where(rng.uniform(size=epis.shape) < epis_sparsity, epis, 0.0)
+    epis = np.where(rng.uniform(size=epis.shape) > epis_sparsity, epis, 0.0)
 
     # Assemble the fitness matrix
     F_mat = construct_matrix(n=n_mutations, diag=diag, offdiag=epis)
