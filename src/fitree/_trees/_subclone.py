@@ -146,10 +146,14 @@ class Subclone(SubcloneBase, NodeMixin):
             nu = np.prod(mu_vec[list(set(self.genotype) - set(self.parent.genotype))])
 
             # birth rate
-            coef = 0.0
-            for i in range(len(gen_list)):
-                for j in range(i, len(gen_list)):
-                    coef += F_mat[gen_list[i], gen_list[j]]
+            # compute the sum of fitness effects of a genotype
+            # based on the fitness matrix F_mat.
+            genotype_bool = np.zeros(F_mat.shape[0], dtype=bool)
+            genotype_bool[gen_list] = True
+            mask = genotype_bool[:, None] & genotype_bool[None, :]
+            upper_tri_mask = np.triu(np.ones_like(F_mat, dtype=bool))
+            combined_mask = mask & upper_tri_mask
+            coef = np.sum(np.where(combined_mask, F_mat, 0.0))
             log_alpha = np.log(common_beta) + coef
             alpha = np.exp(log_alpha)
 
