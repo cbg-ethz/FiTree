@@ -16,10 +16,10 @@ from fitree import VectorizedTrees
 
 ######### Simulation setup #########
 
-N_MUTATIONS: list[int] = [5]
-N_TREES: list[int] = [4]
-N_SIMULATIONS: int = 2
-NCORES: int = 4
+N_MUTATIONS: list[int] = [5, 10, 15, 20]
+N_TREES: list[int] = [500]
+N_SIMULATIONS: int = 100
+NCORES: int = 100
 
 ######### Workflow #########
 
@@ -65,6 +65,9 @@ rule generate_data:
         "data/muts{n_mutations}_trees{N_trees}/sim{i}/vectorized_trees.npz",
         "data/muts{n_mutations}_trees{N_trees}/sim{i}/SCIFIL_input/tree_matrix.txt",
         "data/muts{n_mutations}_trees{N_trees}/sim{i}/SCIFIL_input/cell_count.txt",
+    threads: NCORES
+    resources:
+        time="04:00:00",
     run:
         N_trees = int(wildcards.N_trees)
         n_mutations = int(wildcards.n_mutations)
