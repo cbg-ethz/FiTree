@@ -75,9 +75,10 @@ rule generate_data:
         F_mat = fitree.generate_fmat(
             rng=rng,
             n_mutations=n_mutations,
-            base_sigma=0.5,
+            base_sigma=0.3,
             epis_sigma=1.0,
-            base_sparsity=0.3,
+            base_sparsity=0.1,
+            positive_ratio=0.7,
         )
         np.savez(output[0], F_mat=F_mat)
 
