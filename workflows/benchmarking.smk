@@ -19,7 +19,6 @@ from fitree import VectorizedTrees
 N_MUTATIONS: list[int] = [5]
 N_TREES: list[int] = [4]
 N_SIMULATIONS: int = 2
-SEED: int = 2024
 NCORES: int = 4
 
 ######### Workflow #########
@@ -70,11 +69,15 @@ rule generate_data:
         N_trees = int(wildcards.N_trees)
         n_mutations = int(wildcards.n_mutations)
         i = int(wildcards.i)
-        rng = np.random.default_rng(SEED)
+        rng = np.random.default_rng(2024 * i)
 
 
         F_mat = fitree.generate_fmat(
-            rng=rng, n_mutations=n_mutations, base_sigma=0.3, epis_sigma=1.0
+            rng=rng,
+            n_mutations=n_mutations,
+            base_sigma=0.5,
+            epis_sigma=1.0,
+            base_sparsity=0.3,
         )
         np.savez(output[0], F_mat=F_mat)
 
