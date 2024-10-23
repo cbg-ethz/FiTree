@@ -28,31 +28,31 @@ NCORES: int = 4
 rule all:
     input:
         expand(
-            "data/muts{n_mutations}_trees{N_trees}/sim{i}_fitness_matrix.npz",
+            "data/muts{n_mutations}_trees{N_trees}/sim{i}/fitness_matrix.npz",
             n_mutations=N_MUTATIONS,
             N_trees=N_TREES,
             i=range(N_SIMULATIONS),
         ),
         expand(
-            "data/muts{n_mutations}_trees{N_trees}/sim{i}_cohort.json",
+            "data/muts{n_mutations}_trees{N_trees}/sim{i}/cohort.json",
             n_mutations=N_MUTATIONS,
             N_trees=N_TREES,
             i=range(N_SIMULATIONS),
         ),
         expand(
-            "data/muts{n_mutations}_trees{N_trees}/sim{i}_vectorized_trees.npz",
+            "data/muts{n_mutations}_trees{N_trees}/sim{i}/vectorized_trees.npz",
             n_mutations=N_MUTATIONS,
             N_trees=N_TREES,
             i=range(N_SIMULATIONS),
         ),
         expand(
-            "data/muts{n_mutations}_trees{N_trees}/SCIFIL_input/sim{i}/tree_matrix.txt",
+            "data/muts{n_mutations}_trees{N_trees}/sim{i}/SCIFIL_input/tree_matrix.txt",
             n_mutations=N_MUTATIONS,
             N_trees=N_TREES,
             i=range(N_SIMULATIONS),
         ),
         expand(
-            "data/muts{n_mutations}_trees{N_trees}/SCIFIL_input/sim{i}/cell_count.txt",
+            "data/muts{n_mutations}_trees{N_trees}/sim{i}/SCIFIL_input/cell_count.txt",
             n_mutations=N_MUTATIONS,
             N_trees=N_TREES,
             i=range(N_SIMULATIONS),
@@ -61,11 +61,11 @@ rule all:
 
 rule generate_data:
     output:
-        "data/muts{n_mutations}_trees{N_trees}/sim{i}_fitness_matrix.npz",
-        "data/muts{n_mutations}_trees{N_trees}/sim{i}_cohort.json",
-        "data/muts{n_mutations}_trees{N_trees}/sim{i}_vectorized_trees.npz",
-        "data/muts{n_mutations}_trees{N_trees}/SCIFIL_input/sim{i}/tree_matrix.txt",
-        "data/muts{n_mutations}_trees{N_trees}/SCIFIL_input/sim{i}/cell_count.txt",
+        "data/muts{n_mutations}_trees{N_trees}/sim{i}/fitness_matrix.npz",
+        "data/muts{n_mutations}_trees{N_trees}/sim{i}/cohort.json",
+        "data/muts{n_mutations}_trees{N_trees}/sim{i}/vectorized_trees.npz",
+        "data/muts{n_mutations}_trees{N_trees}/sim{i}/SCIFIL_input/tree_matrix.txt",
+        "data/muts{n_mutations}_trees{N_trees}/sim{i}/SCIFIL_input/cell_count.txt",
     run:
         N_trees = int(wildcards.N_trees)
         n_mutations = int(wildcards.n_mutations)
