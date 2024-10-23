@@ -1,0 +1,164 @@
+import os
+import numpy as np
+import jax.numpy as jnp
+import jax
+from scipy.optimize import minimize
+
+from fitree import VectorizedTrees
+
+
+def prepare_SCIFIL_input(vec_trees: VectorizedTrees, output_dir: str):
+    """Prepare two inputs for SCIFIL:
+    1. A matrix representing the tree structure.
+    2. A cell count matrix.
+
+    MATLAB commmand to run SCIFIL:
+    matlab -nodisplay -nodesktop -r "folder='{output_dir}';SCIFIL_matrix;exit"
+    """
+
+    # Create directory if it does not exist
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    # Create the matrix representing the tree structure
+    tree_matrix = np.zeros((vec_trees.n_nodes + 1, vec_trees.n_nodes + 1))
+    for i in range(vec_trees.n_nodes):
+        tree_matrix[vec_trees.parent_id[i] + 1, i + 1] = 1
+
+    # Create the cell count vector
+    cell_count = np.zeros((vec_trees.N_trees, vec_trees.n_nodes + 1))
+    cell_count[:, 1:] = vec_trees.seq_cell_number
+
+    # Save the matrix and vector
+    np.savetxt(f"{output_dir}/tree_matrix.txt", tree_matrix, fmt="%d")
+    np.savetxt(f"{output_dir}/cell_count.txt", cell_count, fmt="%d")
+
+
+def compute_diffusion_fitness_subclone(vec_trees: VectorizedTrees, eps: float = 1e-16):
+    """This function estimates the fitness of each subclone in the tree
+    using the diffusion approximation method described in Watson et al. (2020).
+    Specifically, we perform maximum likelihood estimation of the fitness
+    using the normalized version of density given in Eq.1 of the paper:
+
+    rho(log_vaf) = theta * exp(-exp(log_vaf) / phi)
+    """
+
+    population_size = np.sum(vec_trees.seq_cell_number, axis=1)
+    vaf = vec_trees.seq_cell_number / (2 * population_size[:, None])
+    tau = 1 / vec_trees.beta
+    tree_ids = jnp.arange(vec_trees.N_trees)
+
+    def rho(log_vaf, theta, phi):
+        return theta * jnp.exp(-jnp.exp(log_vaf) / phi)
+
+    def get_normalizing_constant(theta, phi):
+        l_vec = jnp.log(jnp.linspace(eps, 0.5, 1000))
+        rho_vec = rho(l_vec, theta, phi)
+
+        return jnp.trapezoid(rho_vec, l_vec)
+
+    def logp_s_i(log_vaf, theta, phi, i):
+        theta_i = theta[i]
+        phi_i = phi[i]
+        l_i = log_vaf[i]
+
+        return jnp.log(rho(l_i, theta_i, phi_i)) - jnp.log(
+            get_normalizing_constant(theta_i, phi_i)
+        )
+
+    def logp_s(idx, s):
+        mu = vec_trees.nu[idx]
+        theta = 2 * population_size * mu * tau
+        time_vec = vec_trees.sampling_time
+        n_tilde = jnp.expm1(s * time_vec) / (s * tau + eps)
+        phi = n_tilde / (2 * population_size)
+        f = vaf[:, idx]
+        log_vaf = jnp.where(f > 0, jnp.log(f), jnp.log(eps))
+
+        def scan_fun(carry, i):
+            carry += logp_s_i(log_vaf, theta, phi, i)
+            return carry, carry
+
+        logp, _ = jax.lax.scan(scan_fun, 0.0, tree_ids)
+
+        return -logp
+
+    dlogp_ds = jax.grad(logp_s, argnums=1)
+
+    # Initialize the fitness vector
+    s_vec = np.zeros(vec_trees.n_nodes)
+
+    # Optimization for each node using minimize_scalar
+    for idx in range(vec_trees.n_nodes):
+        res = minimize(lambda s: logp_s(idx, s), 0.1, jac=lambda s: dlogp_ds(idx, s))
+        s_vec[idx] = res.x[0]
+
+    return s_vec
+
+
+def compute_diffusion_fitness_mutation(vec_trees: VectorizedTrees, eps: float = 1e-16):
+    """This function estimates the fitness of each mutation in the tree
+    using the diffusion approximation method described in Watson et al. (2020).
+    Specifically, we perform maximum likelihood estimation of the fitness
+    using the normalized version of density given in Eq.1 of the paper:
+
+    rho(log_vaf) = theta * exp(-exp(log_vaf) / phi)
+    """
+
+    population_size = np.sum(vec_trees.seq_cell_number, axis=1)
+    mutations = np.where(np.sum(vec_trees.genotypes, axis=0) > 0)[0]
+    nr_mutations = mutations.shape[0]
+
+    vaf = vec_trees.seq_cell_number / (2 * population_size[:, None])
+    tau = 1 / vec_trees.beta
+    tree_ids = jnp.arange(vec_trees.N_trees)
+
+    def rho(log_vaf, theta, phi):
+        return theta * jnp.exp(-jnp.exp(log_vaf) / phi)
+
+    def get_normalizing_constant(theta, phi):
+        l_vec = jnp.log(jnp.linspace(eps, 0.5, 1000))
+        rho_vec = rho(l_vec, theta, phi)
+
+        return jnp.trapezoid(rho_vec, l_vec)
+
+    def logp_s_i(log_vaf, theta, phi, i):
+        theta_i = theta[i]
+        phi_i = phi[i]
+        l_i = log_vaf[i]
+
+        return jnp.log(rho(l_i, theta_i, phi_i)) - jnp.log(
+            get_normalizing_constant(theta_i, phi_i)
+        )
+
+    def logp_s(idx, s):
+        clones_w_mut = np.where(vec_trees.genotypes[:, idx] > 0)[0]
+        mu = np.max(vec_trees.nu[clones_w_mut])
+        theta = 2 * population_size * mu * tau
+        time_vec = vec_trees.sampling_time
+        n_tilde = jnp.expm1(s * time_vec) / (s * tau + eps)
+        phi = n_tilde / (2 * population_size)
+        f = np.sum(vaf[:, clones_w_mut], axis=1)
+        log_vaf = jnp.where(f > 0, jnp.log(f), jnp.log(eps))
+
+        def scan_fun(carry, i):
+            carry += logp_s_i(log_vaf, theta, phi, i)
+            return carry, carry
+
+        logp, _ = jax.lax.scan(scan_fun, 0.0, tree_ids)
+
+        return -logp
+
+    dlogp_ds = jax.grad(logp_s, argnums=1)
+
+    # Initialize the fitness vector
+    s_vec = np.zeros(nr_mutations)
+
+    # Optimization for each node using minimize_scalar
+    for idx in range(nr_mutations):
+        res = minimize(lambda s: logp_s(idx, s), 0.1, jac=lambda s: dlogp_ds(idx, s))
+        s_vec[idx] = res.x[0]
+
+    s_vec = np.sum(vec_trees.genotypes * s_vec, axis=1)
+
+    return np.array(s_vec)
