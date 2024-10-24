@@ -14,9 +14,10 @@ def plot_fmat(
 
     F_mat = F_mat + F_mat.T - np.diag(np.diag(F_mat))
     if to_sort:
-        idx = np.argsort(np.diag(F_mat))[::-1]
-        F_mat = F_mat[idx][:, idx]
-        mutation_labels = [mutation_labels[i] for i in idx]
+        diagonal_values = np.diag(F_mat)
+        sorted_indices = np.argsort(-diagonal_values)
+        F_mat = F_mat[np.ix_(sorted_indices, sorted_indices)]
+        mutation_labels = [mutation_labels[i] for i in sorted_indices]
 
     F_mat = np.transpose(F_mat)
 
@@ -103,9 +104,10 @@ def plot_epistasis(
     # Sort the rows and columns of epistasis based on diagonal elements
     F_mat = F_mat + F_mat.T - np.diag(np.diag(F_mat))
     if to_sort:
-        idx = np.argsort(np.diag(F_mat))[::-1]
-        F_mat = F_mat[idx][:, idx]
-        mutation_labels = [mutation_labels[i] for i in idx]
+        diagonal_values = np.diag(F_mat)
+        sorted_indices = np.argsort(-diagonal_values)
+        F_mat = F_mat[np.ix_(sorted_indices, sorted_indices)]
+        mutation_labels = [mutation_labels[i] for i in sorted_indices]
 
     base_effects = np.diag(F_mat).reshape(-1, 1)
 
@@ -156,3 +158,28 @@ def plot_epistasis(
         ax=axes[1],
     )
     axes[1].set_title("Epistasis", fontsize=14)
+
+
+def plot_fmat_std(
+    F_mat_sample: np.ndarray,
+    mutation_labels: list | None = None,
+    to_sort: bool = True,
+    mask_threshold: float = 0.5,
+    figsize: tuple = (8, 6),
+):
+    if mutation_labels is None:
+        mutation_labels = [f"M{i}" for i in range(F_mat_sample.shape[1])]
+
+    F_mat_std = F_mat_sample.std(axis=0)
+
+    if to_sort:
+        diagonal_values = np.diag(F_mat_std)
+        sorted_indices = np.argsort(-diagonal_values)[::-1]
+        F_mat_std = F_mat_std[np.ix_(sorted_indices, sorted_indices)]
+        mutation_labels = [mutation_labels[i] for i in sorted_indices]
+
+    F_mat_std = np.transpose(F_mat_std)
+
+    mask = np.where(F_mat_std < mask_threshold, True, False)
+
+    plot_fmat(F_mat_std[mask], mutation_labels, False, figsize)
