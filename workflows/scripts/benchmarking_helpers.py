@@ -1,7 +1,5 @@
 import os
 import numpy as np
-import jax.numpy as jnp
-import jax
 from scipy.optimize import minimize
 
 from fitree import VectorizedTrees
@@ -46,23 +44,23 @@ def compute_diffusion_fitness_subclone(vec_trees: VectorizedTrees, eps: float = 
     population_size = np.sum(vec_trees.seq_cell_number, axis=1)
     vaf = vec_trees.seq_cell_number / (2 * population_size[:, None])
     tau = 1 / vec_trees.beta
-    tree_ids = jnp.arange(vec_trees.N_trees)
+    tree_ids = np.arange(vec_trees.N_trees)  # pyright: ignore
 
     def rho(log_vaf, theta, phi):
-        return theta * jnp.exp(-jnp.exp(log_vaf) / phi)
+        return theta * np.exp(-np.exp(log_vaf) / phi)
 
     def get_normalizing_constant(theta, phi):
-        l_vec = jnp.log(jnp.linspace(eps, 0.5, 1000))
+        l_vec = np.log(np.linspace(eps, 0.5, 1000))
         rho_vec = rho(l_vec, theta, phi)
 
-        return jnp.trapezoid(rho_vec, l_vec)
+        return np.trapz(rho_vec, l_vec)
 
     def logp_s_i(log_vaf, theta, phi, i):
         theta_i = theta[i]
         phi_i = phi[i]
         l_i = log_vaf[i]
 
-        return jnp.log(rho(l_i, theta_i, phi_i)) - jnp.log(
+        return np.log(rho(l_i, theta_i, phi_i)) - np.log(
             get_normalizing_constant(theta_i, phi_i)
         )
 
@@ -70,27 +68,23 @@ def compute_diffusion_fitness_subclone(vec_trees: VectorizedTrees, eps: float = 
         mu = vec_trees.nu[idx]
         theta = 2 * population_size * mu * tau
         time_vec = vec_trees.sampling_time
-        n_tilde = jnp.expm1(s * time_vec) / (s * tau + eps)
+        n_tilde = np.expm1(s * time_vec) / (s * tau + eps)
         phi = n_tilde / (2 * population_size)
         f = vaf[:, idx]
-        log_vaf = jnp.where(f > 0, jnp.log(f), jnp.log(eps))
+        log_vaf = np.where(f > 0, np.log(f), np.log(eps))
 
-        def scan_fun(carry, i):
-            carry += logp_s_i(log_vaf, theta, phi, i)
-            return carry, carry
-
-        logp, _ = jax.lax.scan(scan_fun, 0.0, tree_ids)
+        logp = 0.0
+        for i in tree_ids:
+            logp += logp_s_i(log_vaf, theta, phi, i)
 
         return -logp
-
-    dlogp_ds = jax.grad(logp_s, argnums=1)
 
     # Initialize the fitness vector
     s_vec = np.zeros(vec_trees.n_nodes)
 
     # Optimization for each node using minimize_scalar
     for idx in range(vec_trees.n_nodes):
-        res = minimize(lambda s: logp_s(idx, s), 0.1, jac=lambda s: dlogp_ds(idx, s))
+        res = minimize(lambda s: logp_s(idx, s), 0.1, method="COBYQA")
         s_vec[idx] = res.x[0]
 
     return s_vec
@@ -107,27 +101,27 @@ def compute_diffusion_fitness_mutation(vec_trees: VectorizedTrees, eps: float = 
 
     population_size = np.sum(vec_trees.seq_cell_number, axis=1)
     mutations = np.where(np.sum(vec_trees.genotypes, axis=0) > 0)[0]
-    nr_mutations = mutations.shape[0]
+    mutations.shape[0]
 
     vaf = vec_trees.seq_cell_number / (2 * population_size[:, None])
     tau = 1 / vec_trees.beta
-    tree_ids = jnp.arange(vec_trees.N_trees)
+    tree_ids = np.arange(vec_trees.N_trees)  # pyright: ignore
 
     def rho(log_vaf, theta, phi):
-        return theta * jnp.exp(-jnp.exp(log_vaf) / phi)
+        return theta * np.exp(-np.exp(log_vaf) / (phi + eps))
 
     def get_normalizing_constant(theta, phi):
-        l_vec = jnp.log(jnp.linspace(eps, 0.5, 1000))
+        l_vec = np.log(np.linspace(eps, 0.5, 1000))
         rho_vec = rho(l_vec, theta, phi)
 
-        return jnp.trapezoid(rho_vec, l_vec)
+        return np.trapz(rho_vec, l_vec)
 
     def logp_s_i(log_vaf, theta, phi, i):
         theta_i = theta[i]
         phi_i = phi[i]
         l_i = log_vaf[i]
 
-        return jnp.log(rho(l_i, theta_i, phi_i)) - jnp.log(
+        return np.log(rho(l_i, theta_i, phi_i)) - np.log(
             get_normalizing_constant(theta_i, phi_i)
         )
 
@@ -136,27 +130,23 @@ def compute_diffusion_fitness_mutation(vec_trees: VectorizedTrees, eps: float = 
         mu = np.max(vec_trees.nu[clones_w_mut])
         theta = 2 * population_size * mu * tau
         time_vec = vec_trees.sampling_time
-        n_tilde = jnp.expm1(s * time_vec) / (s * tau + eps)
+        n_tilde = np.expm1(s * time_vec) / (s * tau + eps)
         phi = n_tilde / (2 * population_size)
         f = np.sum(vaf[:, clones_w_mut], axis=1)
-        log_vaf = jnp.where(f > 0, jnp.log(f), jnp.log(eps))
+        log_vaf = np.where(f > 0, np.log(f), np.log(eps))
 
-        def scan_fun(carry, i):
-            carry += logp_s_i(log_vaf, theta, phi, i)
-            return carry, carry
-
-        logp, _ = jax.lax.scan(scan_fun, 0.0, tree_ids)
+        logp = 0.0
+        for i in tree_ids:
+            logp += logp_s_i(log_vaf, theta, phi, i)
 
         return -logp
 
-    dlogp_ds = jax.grad(logp_s, argnums=1)
-
     # Initialize the fitness vector
-    s_vec = np.zeros(nr_mutations)
+    s_vec = np.zeros(vec_trees.genotypes.shape[1])
 
     # Optimization for each node using minimize_scalar
-    for idx in range(nr_mutations):
-        res = minimize(lambda s: logp_s(idx, s), 0.1, jac=lambda s: dlogp_ds(idx, s))
+    for idx in mutations:
+        res = minimize(lambda s: logp_s(idx, s), 0.1, method="COBYQA")
         s_vec[idx] = res.x[0]
 
     s_vec = np.sum(vec_trees.genotypes * s_vec, axis=1)
