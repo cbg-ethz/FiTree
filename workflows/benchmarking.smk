@@ -6,10 +6,13 @@ import jax.numpy as jnp
 import jax
 import pymc as pm
 from scipy.optimize import minimize
+import arviz as az
 from scripts.benchmarking_helpers import (
     prepare_SCIFIL_input,
     compute_diffusion_fitness_subclone,
     compute_diffusion_fitness_mutation,
+    weighted_spearman,
+    get_available_simulations,
 )
 
 from fitree import VectorizedTrees
@@ -88,6 +91,16 @@ rule all:
             N_trees=N_TREES,
             i=range(N_SIMULATIONS),
         ),
+        expand(
+            "results/muts{n_mutations}_trees{N_trees}/evaluations_observed.txt",
+            n_mutations=N_MUTATIONS,
+            N_trees=N_TREES,
+        ),
+        expand(
+            "results/muts{n_mutations}_trees{N_trees}/evaluations_recoverable.txt",
+            n_mutations=N_MUTATIONS,
+            N_trees=N_TREES,
+        ),
 
 
 rule generate_data:
@@ -162,11 +175,12 @@ rule run_SCIFIL:
         output=os.path.abspath(
             "results/muts{n_mutations}_trees{N_trees}/sim{i}/SCIFIL_result.txt"
         ),
-    threads: 1
+    threads: 4
     resources:
         runtime=60,
         tasks=1,
         nodes=1,
+        mem_mb_per_cpu=4096,
     shell:
         """
         cd {params.scifil_dir} && \
@@ -244,6 +258,141 @@ rule run_fitree:
                 "C_sampling": C_sampling_init,
                 "nr_neg_samples": nr_neg_samples_init,
             }
+            pm.Potential(
+                "joint_likelihood",
+                fitree_joint_likelihood(
+                    model.fitness_matrix, model.C_sampling, model.nr_neg_samples
+                ),
+            )
             trace = pm.sample(draws=500, tune=500, chains=4, initvals=start_vals)
 
         trace.to_netcdf(output[0])
+
+
+rule evaluate:
+    output:
+        observed="results/muts{n_mutations}_trees{N_trees}/evaluations_observed.txt",
+        recoverable="results/muts{n_mutations}_trees{N_trees}/evaluations_recoverable.txt",
+    threads: 1
+    run:
+        # Extract the list of available simulations
+        available_sims = get_available_simulations(
+            wildcards.n_mutations, wildcards.N_trees
+        )
+
+        # Initialize the output files
+        with open(output.observed, "w") as f_obs, open(
+            output.recoverable, "w"
+        ) as f_rec:
+            f_obs.write(
+                "FiTree "
+                + "Diffusion_subclone "
+                + "Diffusion_mutation "
+                + "SCIFIL "
+                + "freq"
+                + "\n"
+            )
+            f_rec.write(
+                "FiTree "
+                + "Diffusion_subclone "
+                + "Diffusion_mutation "
+                + "SCIFIL "
+                + "freq"
+                + "\n"
+            )
+
+            # Iterate over the available simulations
+            for idx, i in enumerate(available_sims):
+                # Load data for simulation i
+                trace = az.from_netcdf(
+                    f"results/muts{wildcards.n_mutations}_trees{wildcards.N_trees}/sim{i}/fitree_posterior.nc"
+                )
+                subclone_fitness = np.loadtxt(
+                    f"results/muts{wildcards.n_mutations}_trees{wildcards.N_trees}/sim{i}/diffusion_subclone_fitness.txt"
+                )
+                mutation_fitness = np.loadtxt(
+                    f"results/muts{wildcards.n_mutations}_trees{wildcards.N_trees}/sim{i}/diffusion_mutation_fitness.txt"
+                )
+                scifil_res = np.loadtxt(
+                    f"results/muts{wildcards.n_mutations}_trees{wildcards.N_trees}/sim{i}/SCIFIL_result.txt"
+                )
+                vec_trees = fitree.load_vectorized_trees_npz(
+                    f"data/muts{wildcards.n_mutations}_trees{wildcards.N_trees}/sim{i}/vectorized_trees.npz"
+                )
+                F_mat = np.load(
+                    f"data/muts{wildcards.n_mutations}_trees{wildcards.N_trees}/sim{i}/fitness_matrix.npz"
+                )["F_mat"]
+
+                # Determine observed and recoverable mutations
+                observed = vec_trees.observed.sum(axis=0) > 0
+                recoverable = (observed + vec_trees.genotypes.sum(axis=1) <= 2) > 0
+
+                # Calculate frequency
+                frequency = np.array(
+                    np.mean(
+                        vec_trees.cell_number
+                        / np.sum(vec_trees.cell_number, axis=1)[:, None],
+                        axis=0,
+                    )
+                )
+
+                # Calculate true fitness
+                vec_trees = fitree.update_params(vec_trees, F_mat)
+                true_fitness = np.log(vec_trees.alpha) - np.log(vec_trees.beta)
+
+                # Evaluate FiTree
+                fitree_posterior = trace.posterior["fitness_matrix"].values
+                inferred_F_mat = np.median(fitree_posterior, axis=(0, 1))
+                vec_trees_inferred = fitree.update_params(vec_trees, inferred_F_mat)
+                fitree_fitness = np.log(vec_trees_inferred.alpha) - np.log(
+                    vec_trees_inferred.beta
+                )
+
+                # Evaluate SCIFIL
+                scifil_res = scifil_res[:, 1:]  # Adjust indexing if necessary
+                scifil_fitness = np.mean(scifil_res, axis=0)
+                scifil_fitness[np.isnan(scifil_fitness)] = 0
+
+                # Compute correlations
+                fitree_observed_corr = weighted_spearman(
+                    true_fitness, fitree_fitness, observed
+                )
+                fitree_recoverable_corr = weighted_spearman(
+                    true_fitness, fitree_fitness, recoverable
+                )
+
+                diffusion_subclone_observed_corr = weighted_spearman(
+                    true_fitness, subclone_fitness, observed
+                )
+                diffusion_subclone_recoverable_corr = weighted_spearman(
+                    true_fitness, subclone_fitness, recoverable
+                )
+
+                diffusion_mutation_observed_corr = weighted_spearman(
+                    true_fitness, mutation_fitness, observed
+                )
+                diffusion_mutation_recoverable_corr = weighted_spearman(
+                    true_fitness, mutation_fitness, recoverable
+                )
+
+                scifil_observed_corr = weighted_spearman(
+                    true_fitness, scifil_fitness, observed
+                )
+                scifil_recoverable_corr = weighted_spearman(
+                    true_fitness, scifil_fitness, recoverable
+                )
+
+                freq_observed_corr = weighted_spearman(
+                    true_fitness, frequency, observed
+                )
+                freq_recoverable_corr = weighted_spearman(
+                    true_fitness, frequency, recoverable
+                )
+
+                # Write results to output files
+                f_obs.write(
+                    f"{fitree_observed_corr} {diffusion_subclone_observed_corr} {diffusion_mutation_observed_corr} {scifil_observed_corr} {freq_observed_corr}\n"
+                )
+                f_rec.write(
+                    f"{fitree_recoverable_corr} {diffusion_subclone_recoverable_corr} {diffusion_mutation_recoverable_corr} {scifil_recoverable_corr} {freq_recoverable_corr}\n"
+                )

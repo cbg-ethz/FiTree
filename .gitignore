@@ -178,3 +178,4 @@ example/
 figures/
 tmp/
 results/
+*.sh

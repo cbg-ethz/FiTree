@@ -1,6 +1,7 @@
 import os
 import numpy as np
 from scipy.optimize import minimize
+from scipy.stats import rankdata
 
 from fitree import VectorizedTrees
 
@@ -152,3 +153,28 @@ def compute_diffusion_fitness_mutation(vec_trees: VectorizedTrees, eps: float = 
     s_vec = np.sum(vec_trees.genotypes * s_vec, axis=1)
 
     return np.array(s_vec)
+
+
+def weighted_spearman(x, y, w=None):
+    if w is None:
+        w = np.ones_like(x)
+    x_rank = rankdata(x)
+    y_rank = rankdata(y)
+    return np.corrcoef(x_rank * w, y_rank * w)[0, 1]
+
+
+def get_available_simulations(n_mutations, N_trees):
+    sims = []
+    os.chdir("/Users/luox/Documents/Projects/FiTree/workflows")
+    for i in range(100):
+        required_files = [
+            f"results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior.nc",
+            f"results/muts{n_mutations}_trees{N_trees}/sim{i}/diffusion_subclone_fitness.txt",
+            f"results/muts{n_mutations}_trees{N_trees}/sim{i}/diffusion_mutation_fitness.txt",
+            f"results/muts{n_mutations}_trees{N_trees}/sim{i}/SCIFIL_result.txt",
+            f"data/muts{n_mutations}_trees{N_trees}/sim{i}/vectorized_trees.npz",
+            f"data/muts{n_mutations}_trees{N_trees}/sim{i}/fitness_matrix.npz",
+        ]
+        if all(os.path.exists(f) for f in required_files):
+            sims.append(i)
+    return sims
