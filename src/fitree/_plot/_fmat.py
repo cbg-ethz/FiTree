@@ -164,14 +164,13 @@ def plot_fmat_std(
     F_mat_sample: np.ndarray,
     mutation_labels: list | None = None,
     to_sort: bool = True,
-    mask_threshold: float = 0.5,
     figsize: tuple = (8, 6),
 ):
     if mutation_labels is None:
         mutation_labels = [f"M{i}" for i in range(F_mat_sample.shape[1])]
 
     F_mat_std = F_mat_sample.std(axis=0)
-
+    F_mat_std = F_mat_std + F_mat_std.T - np.diag(np.diag(F_mat_std))
     if to_sort:
         diagonal_values = np.diag(F_mat_std)
         sorted_indices = np.argsort(-diagonal_values)[::-1]
@@ -180,6 +179,4 @@ def plot_fmat_std(
 
     F_mat_std = np.transpose(F_mat_std)
 
-    mask = np.where(F_mat_std < mask_threshold, True, False)
-
-    plot_fmat(F_mat_std[mask], mutation_labels, False, figsize)
+    plot_fmat(F_mat_std, mutation_labels, False, figsize)
