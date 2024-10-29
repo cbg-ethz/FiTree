@@ -1,7 +1,7 @@
 import pytensor.tensor as pt
 import numpy as np
 
-from fitree._inference._likelihood import jlogp, _log_pt
+from fitree._inference._likelihood import jlogp, _log_pt, update_params
 from fitree._trees._wrapper import wrap_trees
 from fitree._trees import TumorTreeCohort
 
@@ -35,6 +35,7 @@ class FiTreeJointLikelihood(Op):
             nr_neg_samples,
         ) = inputs
         self.vectorized_trees = self.vectorized_trees._replace(C_s=C_s)
+        self.vectorized_trees = update_params(self.vectorized_trees, F_mat)
         joint_likelihood = jlogp(self.vectorized_trees, F_mat, self.eps, self.tau)
 
         joint_likelihood += (
