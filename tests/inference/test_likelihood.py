@@ -41,6 +41,7 @@ def test_mlogp_1():
         observed=np.array([(1, 1)] * N_trees),
         sampling_time=np.array([t] * N_trees),
         weight=np.array([1.0] * N_trees),
+        tumor_size=np.array([1.0] * N_trees),
         node_id=np.array([0, 1], dtype=np.int32),
         parent_id=np.array([-1, 0], dtype=np.int32),
         alpha=np.array([beta, 9.2]),
@@ -70,6 +71,7 @@ def test_mlogp_1():
                 0,  # observed
                 0,  # sampling_time
                 0,  # weight
+                0,  # tumor_size
                 None,  # node_id
                 None,  # parent_id
                 None,  # alpha
@@ -132,6 +134,7 @@ def test_mlogp_2():
         observed=np.array([(1, 1)] * N_trees),
         sampling_time=np.array([t] * N_trees),
         weight=np.array([1.0] * N_trees),
+        tumor_size=np.array([1.0] * N_trees),
         node_id=np.array([0, 1], dtype=np.int32),
         parent_id=np.array([-1, 0], dtype=np.int32),
         alpha=np.array([8.5, 9.2]),
@@ -161,6 +164,7 @@ def test_mlogp_2():
                 0,  # observed
                 0,  # sampling_time
                 0,  # weight
+                0,  # tumor_size
                 None,  # node_id
                 None,  # parent_id
                 None,  # alpha

@@ -14,6 +14,7 @@ class VectorizedTrees(NamedTuple):
     observed: jax.Array | np.ndarray  # (N_trees, n_nodes)
     sampling_time: jax.Array | np.ndarray  # (N_trees,)
     weight: jax.Array | np.ndarray  # (N_trees,)
+    tumor_size: jax.Array | np.ndarray  # (N_trees,)
 
     node_id: jax.Array | np.ndarray  # (n_nodes,)
     parent_id: jax.Array | np.ndarray  # (n_nodes,)
@@ -133,11 +134,13 @@ def wrap_trees(
     observed = np.zeros((N_trees, n_nodes), dtype=bool)
     sampling_time = np.zeros(N_trees)
     weight = np.zeros(N_trees)
+    tumor_size = np.zeros(N_trees)
 
     for i, tree in enumerate(trees.trees):
         root = tree.root
         sampling_time[i] = tree.sampling_time
         weight[i] = tree.weight
+        tumor_size[i] = tree.tumor_size
 
         node_iter = PreOrderIter(root)
         next(node_iter)  # skip the root
@@ -175,6 +178,7 @@ def wrap_trees(
         observed=observed,
         sampling_time=sampling_time,
         weight=weight,
+        tumor_size=tumor_size,
         node_id=node_id,
         parent_id=parent_id,
         alpha=np.zeros(n_nodes, dtype=np.float64),
