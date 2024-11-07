@@ -1,5 +1,5 @@
 import numpy as np
-import joblib
+from multiprocessing import Pool
 
 from anytree import PreOrderIter
 from typing import Tuple, Any
@@ -198,7 +198,7 @@ def generate_trees(
     k_repeat: int | Any = 0,
     k_multiple: int | Any = 1,
     return_time: bool | Any = False,
-    use_joblib: bool | Any = False,
+    parallel: bool | Any = False,
     n_jobs: int | Any = -1,
 ) -> TumorTreeCohort:
     """
@@ -251,27 +251,32 @@ def generate_trees(
 
     seeds = rng.integers(0, 2**32 - 1, size=N_trees)
 
-    if use_joblib:
-        trees = joblib.Parallel(n_jobs=n_jobs, backend="threading")(
-            joblib.delayed(_generate_valid_tree)(
-                rng=np.random.default_rng(seeds[i]),
-                i=i,
-                n_mutations=n_mutations,
-                mu_vec=mu_vec,
-                F_mat=F_mat,
-                common_beta=common_beta,
-                C_0=C_0,
-                C_seq=C_seq,
-                C_sampling=C_sampling,
-                tau=tau,
-                t_max=t_max,
-                rule=rule,
-                k_repeat=k_repeat,
-                k_multiple=k_multiple,
-                return_time=return_time,
+    if parallel:
+        n_jobs = n_jobs if n_jobs > 0 else None  # None means using all available cores
+        with Pool(processes=n_jobs) as pool:
+            trees = pool.starmap(
+                _generate_valid_tree,
+                [
+                    (
+                        np.random.default_rng(seeds[i]),
+                        i,
+                        n_mutations,
+                        mu_vec,
+                        F_mat,
+                        common_beta,
+                        C_0,
+                        C_seq,
+                        C_sampling,
+                        tau,
+                        t_max,
+                        rule,
+                        k_repeat,
+                        k_multiple,
+                        return_time,
+                    )
+                    for i in range(N_trees)
+                ],
             )
-            for i in range(N_trees)
-        )
     else:
         trees = [
             _generate_valid_tree(
