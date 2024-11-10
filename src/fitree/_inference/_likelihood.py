@@ -86,13 +86,9 @@ def _pt(alpha: jnp.ndarray, beta: jnp.ndarray, lam: jnp.ndarray, t: jnp.ndarray)
 def _case1_var1(t, r1, delta1, alpha2, beta2, lam2):
     # Variance function for delta1 > lam2 == 0.0
 
-    return (
-        jnp.power(t, -2.0 * r1 + 2.0)
-        * jnp.exp(-2.0 * delta1 * t)
-        * (
-            (1.0 + 2.0 * alpha2 * t) * integrate(t, r1 - 1.0, delta1, 0.0)
-            - 2.0 * alpha2 * integrate(t, r1, delta1, 0.0)
-        )
+    return jnp.power(t, -r1 + 1.0) * (
+        (1.0 + 2.0 * alpha2 * t) * integrate(t, r1 - 1.0, delta1, -delta1 * t)
+        - 2.0 * alpha2 * integrate(t, r1, delta1, -delta1 * t)
     )
 
 
@@ -100,33 +96,15 @@ def _case1_var1(t, r1, delta1, alpha2, beta2, lam2):
 def _case1_var2(t, r1, delta1, alpha2, beta2, lam2):
     # Variance function for delta1 > lam2 != 0.0
 
-    def _v1():
-        # delta1 = 0.0
-        return jnp.power(t, -2.0 * r1 + 2.0) * (
-            2.0
-            * alpha2
-            / lam2
-            * jnp.exp(2.0 * lam2 * t)
-            * integrate(t, r1 - 1.0, -2.0 * lam2, 0.0)
-            - (alpha2 + beta2)
-            / lam2
-            * jnp.exp(lam2 * t)
-            * integrate(t, r1 - 1.0, -lam2, 0.0)
-        )
-
-    def _v2():
-        # delta1 != 0.0
-        return jnp.power(t, -2.0 * r1 + 2.0) * (
-            2.0
-            * alpha2
-            / lam2
-            * integrate(t, r1 - 1.0, delta1 - 2.0 * lam2, -2.0 * (delta1 - lam2) * t)
-            - (alpha2 + beta2)
-            / lam2
-            * integrate(t, r1 - 1.0, delta1 - lam2, -(2.0 * delta1 - lam2) * t)
-        )
-
-    return jax.lax.cond(delta1 == 0.0, _v1, _v2)
+    return jnp.power(t, -r1 + 1.0) * (
+        2.0
+        * alpha2
+        / lam2
+        * integrate(t, r1 - 1.0, delta1 - 2.0 * lam2, -(delta1 - 2.0 * lam2) * t)
+        - (alpha2 + beta2)
+        / lam2
+        * integrate(t, r1 - 1.0, delta1 - lam2, -(delta1 - lam2) * t)
+    )
 
 
 @jax.jit
@@ -168,11 +146,7 @@ def _lp2_case1(
     alpha2 = par2["alpha"]
     beta2 = par2["beta"]
 
-    x1_tilde = get_x_tilde(x1 + 1.0, delta1, r1, t)
-    x2_tilde = get_x_tilde(x2 + 1.0, delta2, r2, t)
-
-    gamma_mean = 1.0 / (delta1 - lam2)
-    gamma_var = jax.lax.cond(
+    x2_var = jax.lax.cond(
         jnp.abs(lam2) < 1e-3,
         _case1_var1,
         _case1_var2,
@@ -183,18 +157,22 @@ def _lp2_case1(
         beta2,
         lam2,
     )
-    gamma_scale = gamma_var / gamma_mean
-    gamma_shape = gamma_mean / gamma_scale * nu2 * x1_tilde
+    log_x1_tilde = -(r1 - 1) * jnp.log(t) - delta1 * t + jnp.log1p(x1)
+    log_x2_tilde = -(r2 - 1) * jnp.log(t) - delta2 * t + jnp.log1p(x2)
+    lnorm_var = jnp.log1p(x2_var / nu2 / (x1 + 1.0) * ((delta1 - lam2) ** 2))
+    lnorm_mean = (
+        jnp.log(nu2) + log_x1_tilde - jnp.log(delta1 - lam2)
+    ) - 0.5 * lnorm_var
 
-    p2_temp = jstats.gamma.cdf(x2_tilde, a=gamma_shape, scale=gamma_scale)
+    p2_temp = jstats.norm.cdf(log_x2_tilde, loc=lnorm_mean, scale=jnp.sqrt(lnorm_var))
 
     p2 = jnp.where(
         pdf & (x2 > 0.0),
         p2_temp
-        - jstats.gamma.cdf(
-            get_x_tilde(x2, delta2, r2, t),
-            a=gamma_shape,
-            scale=gamma_scale,
+        - jstats.norm.cdf(
+            -(r2 - 1) * jnp.log(t) - delta2 * t + jnp.log(x2 + eps),
+            loc=lnorm_mean,
+            scale=jnp.sqrt(lnorm_var),
         ),
         p2_temp,
     )
@@ -215,8 +193,8 @@ def _lp2_case1(
 def _case2_var1(t, r1, delta1, alpha2, beta2):
     # Variance function for delta1 = lam2 = 0.0
 
-    return jnp.power(t, -r1) * (
-        (1.0 + 2.0 * alpha2 * t) / r1 - alpha2 * jnp.power(t, -r1 + 2.0)
+    return jnp.power(t, -1.0) * (
+        (1.0 + 2.0 * alpha2 * t) / r1 - 2 * alpha2 * t / (r1 + 1)
     )
 
 
@@ -224,9 +202,9 @@ def _case2_var1(t, r1, delta1, alpha2, beta2):
 def _case2_var2(t, r1, delta1, alpha2, beta2):
     # Variance function for delta1 = lam2 != 0.0
 
-    return jnp.power(t, -2.0 * r1) * (
-        2.0 * alpha2 / delta1 * integrate(t, r1 - 1.0, -delta1, 0.0)
-        - (alpha2 + beta2) / delta1 * jnp.exp(-delta1 * t) * jnp.power(t, r1) / r1
+    return jnp.power(t, -r1 - 1.0) * (
+        2.0 * alpha2 / delta1 * integrate(t, r1 - 1.0, -delta1, delta1 * t)
+        - (alpha2 + beta2) / delta1 * jnp.power(t, r1) / r1
     )
 
 
@@ -268,24 +246,23 @@ def _lp2_case2(
     alpha2 = par2["alpha"]
     beta2 = par2["beta"]
 
-    x1_tilde = get_x_tilde(x1 + 1.0, delta1, r1, t)
-    x2_tilde = get_x_tilde(x2 + 1.0, delta1, r2, t)
-    gamma_mean = 1 / r1
-    gamma_var = jax.lax.cond(
+    x2_var = jax.lax.cond(
         jnp.abs(delta1) < 1e-3, _case2_var1, _case2_var2, t, r1, delta1, alpha2, beta2
     )
-    gamma_scale = gamma_var / gamma_mean
-    gamma_shape = gamma_mean / gamma_scale * nu2 * x1_tilde
+    log_x1_tilde = -(r1 - 1) * jnp.log(t) - delta1 * t + jnp.log1p(x1)
+    log_x2_tilde = -(r2 - 1) * jnp.log(t) - delta1 * t + jnp.log1p(x2)
+    lnorm_var = jnp.log1p(x2_var / nu2 / (x1 + 1.0) * (r1**2))
+    lnorm_mean = (jnp.log(nu2) + log_x1_tilde - jnp.log(r1)) - 0.5 * lnorm_var
 
-    p2_temp = jstats.gamma.cdf(x2_tilde, a=gamma_shape, scale=gamma_scale)
+    p2_temp = jstats.norm.cdf(log_x2_tilde, loc=lnorm_mean, scale=jnp.sqrt(lnorm_var))
 
     p2 = jnp.where(
         x2 > 0,
         p2_temp
-        - jstats.gamma.cdf(
-            get_x_tilde(x2, delta1, r2, t),
-            a=gamma_shape,
-            scale=gamma_scale,
+        - jstats.norm.cdf(
+            -(r2 - 1) * jnp.log(t) - delta1 * t + jnp.log(x2 + eps),
+            loc=lnorm_mean,
+            scale=jnp.sqrt(lnorm_var),
         ),
         p2_temp,
     )
@@ -651,7 +628,7 @@ def jlogp_w_parent(
     """This function computes the log-likelihood of a subclone
     given its parent (See Theorem 2 in the supplement)
     """
-    x1 = jnp.where(observed[0], x1, 0.0)
+    # x1 = jnp.where(observed[0], x1, 0.0)
 
     lam_diff = par2["lam"] - par1["delta"]
 
