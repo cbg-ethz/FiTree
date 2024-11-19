@@ -914,7 +914,7 @@ def _log_pt(trees: VectorizedTrees, eps: float = 1e-64, tau: float = 1e-2) -> fl
                 * t
                 / tau
                 * jnp.log(phi + (1 - phi) * jnp.exp(-g * tau / t) + eps),
-                lambda: -rho * C_0 * jnp.log(1 + phi * g + eps),
+                lambda: -rho * C_0 * jnp.log1p(phi * g),
             ),
             lambda: 0.0,
         )
