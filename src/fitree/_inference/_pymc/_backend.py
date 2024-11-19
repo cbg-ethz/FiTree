@@ -22,9 +22,8 @@ class FiTreeJointLikelihood(Op):
         eps: float = 1e-64,
         tau: float = 1e-2,
         augment_max_level: int | None = None,
-        pseudo_count: float = 0,
     ):
-        self.vectorized_trees, _ = wrap_trees(trees, augment_max_level, pseudo_count)
+        self.vectorized_trees, _ = wrap_trees(trees, augment_max_level)
         self.eps = eps
         self.tau = tau
 
