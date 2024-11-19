@@ -179,3 +179,5 @@ figures/
 tmp/
 results/
 *.sh
+tests/mtbp/
+src/fitree/_mtbp
