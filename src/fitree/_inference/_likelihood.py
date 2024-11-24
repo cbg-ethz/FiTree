@@ -940,9 +940,149 @@ def compute_normalizing_constant(
     return -jnp.expm1(log_pt)
 
 
+# @jax.jit
+# def jlogp(
+#     trees: VectorizedTrees, F_mat: jnp.ndarray, eps: float = 1e-64, tau: float = 1e-2
+# ):
+#     """This function computes the joint log-likelihood of a set of trees
+#     given the fitness matrix F_mat after normalizing it by the marginal
+#     likelihood of the sampling event occurring before some predefined
+#     maximum time. (See Theorem 3 in the supplement)
+#     """
+
+#     # Update the growth parameters based on the fitness matrix
+#     trees = update_params(trees, F_mat)
+
+#     # Compute the unnormalized joint log-likelihood
+#     jlogp_unnormalized = unnormalized_joint_logp(trees, eps)
+
+#     return jlogp_unnormalized
+
+#     # # Compute the normalizing constant
+#     # normalizing_constant = compute_normalizing_constant(trees, eps=eps, tau=tau)
+
+#     # # Compute the normalized log-likelihood
+#     # jlogp_normalized = (
+#     #     jlogp_unnormalized - jnp.log(normalizing_constant + eps) * trees.N_patients
+#     # )
+
+#     # return jlogp_normalized
+
+
+# @jax.jit
+# def jlogp_neg_samples(
+#     trees: VectorizedTrees,
+#     nr_neg_samples: int,
+#     eps: float = 1e-64
+# ):
+
+
+#     def scan_fun(jlogp, i):
+#         new_jlogp = jlogp + jlogp_one_node(trees, i, eps)
+#         return new_jlogp, new_jlogp
+
+#     jlogp, _ = jax.lax.scan(scan_fun, 0.0, trees.node_id)
+
+#     return jlogp + _log_pt(trees, eps) * nr_neg_samples
+
+
+@jax.jit
+def estimate_cell_numbers(
+    trees: VectorizedTrees,
+):
+    # Estimate observed cell numbers using sequenced cell numbers
+    frequencies = trees.seq_cell_number / trees.seq_cell_number.mean(axis=1).reshape(
+        -1, 1
+    )
+    cell_number = frequencies * trees.tumor_size.reshape(-1, 1)
+
+    # Compute the unobserved cell numbers using expected values
+    def scan_fun(cell_number, i):
+        pa_i = trees.parent_id[i]
+        delta_i = trees.delta[i]
+        r_i = trees.r[i]
+        lam_i = trees.lam[i]
+        nu_i = trees.nu[i]
+        delta_pa_i = trees.delta[pa_i]
+        r_pa_i = trees.r[pa_i]
+        t = trees.sampling_time
+        observed = trees.observed[:, i].astype(jnp.float64)
+        cell_number_i = cell_number[:, i]
+        cell_number_i *= observed
+
+        def exp_num_no_parent():
+            return (
+                trees.C_0
+                * nu_i
+                * jnp.where(
+                    lam_i == 0.0,
+                    t,
+                    jnp.expm1(lam_i * t) / lam_i,
+                )
+            )
+
+        def exp_num_w_parent():
+            return (
+                jnp.power(t, r_i - r_pa_i)
+                * jnp.exp((delta_i - delta_pa_i) * t)
+                * nu_i
+                * cell_number[:, pa_i]
+                * jax.lax.switch(
+                    (jnp.sign(lam_diff) + 1).astype(jnp.int32),
+                    [
+                        lambda: 1.0 / (delta_pa_i - lam_i),
+                        lambda: 1.0 / r_pa_i,
+                        lambda: jss.gamma(r_pa_i)
+                        / jnp.power(lam_i - delta_pa_i, r_pa_i),
+                    ],
+                )
+            )
+
+        lam_diff = lam_i - delta_pa_i
+        cell_number_i += (1.0 - observed) * jax.lax.cond(
+            pa_i == -1,
+            exp_num_no_parent,
+            exp_num_w_parent,
+        )
+        cell_number = cell_number.at[:, i].set(cell_number_i)
+
+        return cell_number, None
+
+    cell_number, _ = jax.lax.scan(scan_fun, cell_number, trees.node_id)
+
+    # Renormalize the cell numbers
+    cell_number = cell_number / cell_number.sum(axis=1).reshape(-1, 1)
+    cell_number *= trees.tumor_size.reshape(-1, 1)
+
+    trees = trees._replace(cell_number=cell_number)
+
+    return trees
+
+
+@jax.jit
+def log_multi_hypergeo(
+    K: jnp.ndarray,
+    k: jnp.ndarray,
+    N: jnp.ndarray,
+    n: jnp.ndarray,
+):
+    """This function computes the log density of the multivariate hypergeometric
+    distribution.
+    """
+
+    log_p = jnp.sum(gammaln(K + 1) - gammaln(K - k + 1) - gammaln(k + 1), axis=1)
+    log_p -= gammaln(N + 1) - gammaln(N - n + 1) - gammaln(n + 1)
+
+    return jnp.sum(log_p)
+
+
 @jax.jit
 def jlogp(
-    trees: VectorizedTrees, F_mat: jnp.ndarray, eps: float = 1e-64, tau: float = 1e-2
+    trees: VectorizedTrees,
+    F_mat: jnp.ndarray,
+    nr_neg_samples: int,
+    eps: float = 1e-64,
+    tau: float = 1e-2,
 ):
     """This function computes the joint log-likelihood of a set of trees
     given the fitness matrix F_mat after normalizing it by the marginal
@@ -956,12 +1096,23 @@ def jlogp(
     # Compute the unnormalized joint log-likelihood
     jlogp_unnormalized = unnormalized_joint_logp(trees, eps)
 
+    # # Compute the probability of sampling C_seq cells
+    # log_p_seq = log_multi_hypergeo(
+    #     trees.cell_number,
+    #     trees.seq_cell_number,
+    #     trees.tumor_size,
+    #     trees.seq_cell_number.sum(axis=1),
+    # )
+
     # Compute the normalizing constant
     normalizing_constant = compute_normalizing_constant(trees, eps=eps, tau=tau)
 
     # Compute the normalized log-likelihood
     jlogp_normalized = (
-        jlogp_unnormalized - jnp.log(normalizing_constant + eps) * trees.N_patients
+        jlogp_unnormalized
+        - jnp.log(normalizing_constant + eps) * trees.N_patients
+        + _log_pt(trees, eps, tau) * nr_neg_samples
+        # + log_p_seq
     )
 
     return jlogp_normalized
