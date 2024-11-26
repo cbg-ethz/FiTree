@@ -19,19 +19,14 @@ class FiTreeJointLikelihood(Op):
     def __init__(
         self,
         trees: TumorTreeCohort,
+        augment_max_level: int | None = 2,
+        pseudo_count: float = 0,
         eps: float = 1e-64,
         tau: float = 1e-2,
-        augment_max_level: int | None = None,
-        rng: np.random.Generator | None = None,
     ):
-        self.vectorized_trees, _ = wrap_trees(trees, augment_max_level)
+        self.vectorized_trees, _ = wrap_trees(trees, augment_max_level, pseudo_count)
         self.eps = eps
         self.tau = tau
-
-        if rng is None:
-            rng = np.random.default_rng()
-
-        self.rng = rng
 
     def perform(self, node, inputs, outputs):  # type: ignore
         (
@@ -41,7 +36,11 @@ class FiTreeJointLikelihood(Op):
         ) = inputs
         self.vectorized_trees = self.vectorized_trees._replace(C_s=C_s)
         joint_likelihood = jlogp(
-            self.vectorized_trees, F_mat, nr_neg_samples, self.eps, self.tau
+            trees=self.vectorized_trees,
+            F_mat=F_mat,
+            nr_neg_samples=nr_neg_samples,
+            eps=self.eps,
+            tau=self.tau,
         )
 
         if np.isnan(joint_likelihood):

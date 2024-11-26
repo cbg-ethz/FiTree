@@ -80,6 +80,7 @@ def get_augmented_tree(
 def wrap_trees(
     trees: TumorTreeCohort,
     augment_max_level: int | None = None,
+    pseudo_count: float = 0,
 ) -> tuple[VectorizedTrees, TumorTree]:
     """This function takes a TumorTreeCohort object as input
     and returns a VectorizedTrees object.
@@ -150,7 +151,7 @@ def wrap_trees(
                 seq_cell_number[i, idx] = node.seq_cell_number
 
         # Estimate original cell numbers based on sample proportions
-        cell_number[i, :] = seq_cell_number[i, :]
+        cell_number[i, :] = seq_cell_number[i, :] + pseudo_count
         cell_number[i, :] = cell_number[i, :] / np.sum(cell_number[i, :])  # normalize
         cell_number[i, :] *= tree.tumor_size  # scale
         cell_number[i, :] = np.round(cell_number[i, :])  # round
