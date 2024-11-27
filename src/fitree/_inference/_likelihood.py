@@ -941,6 +941,105 @@ def compute_normalizing_constant(
 
 
 @jax.jit
+def sample_cell_numbers(trees: VectorizedTrees, key: jax.dtypes.prng_key):
+    # Estimate observed cell numbers using sequenced cell numbers
+    frequencies = trees.seq_cell_number / trees.seq_cell_number.sum(axis=1).reshape(
+        -1, 1
+    )
+    cell_number = jnp.round(jnp.array(frequencies * trees.tumor_size.reshape(-1, 1)))
+
+    t = trees.sampling_time
+    C_0 = trees.C_0
+    beta = trees.beta
+
+    def sample_nb(key, r, p):
+        # sample from negative binomial by sampling from gamma-poisson mixture
+        key, gamma_key = jax.random.split(key)
+        y = jax.random.gamma(gamma_key, a=r, shape=p.shape) * (1 - p) / p
+        key, poisson_key = jax.random.split(key)
+        return jax.random.poisson(poisson_key, y).astype(jnp.float64)
+
+    # Compute the unobserved cell numbers using expected values
+    def scan_fun(carry, i):
+        key, cell_number = carry
+
+        key, _ = jax.random.split(key)
+
+        pa_i = trees.parent_id[i]
+        lam_i = trees.lam[i]
+        nu_i = trees.nu[i]
+        alpha_i = trees.alpha[i]
+        rho_i = trees.rho[i]
+        delta_pa_i = trees.delta[pa_i]
+        r_pa_i = trees.r[pa_i]
+        observed = trees.observed[:, i].astype(jnp.float64)
+        cell_number_i = cell_number[:, i]
+        cell_number_i *= observed
+
+        def sample_no_parent(key):
+            return jax.lax.cond(
+                lam_i <= 0.0,
+                lambda: sample_nb(key, C_0 * rho_i, _pt(alpha_i, beta, lam_i, t)),
+                lambda: jax.random.gamma(key, a=C_0 * rho_i, shape=t.shape)
+                * alpha_i
+                / lam_i
+                * jnp.exp(lam_i * t),
+            )
+
+        def expected_w_parent(key):
+            lam_diff = lam_i - delta_pa_i
+            return (
+                nu_i
+                * cell_number[:, pa_i]
+                * jax.lax.switch(
+                    (jnp.sign(lam_diff) + 1).astype(jnp.int32),
+                    [
+                        lambda: 1.0 / (delta_pa_i - lam_i) * jnp.ones_like(t),
+                        lambda: 1.0 / r_pa_i * t,
+                        lambda: jnp.zeros_like(t),
+                    ],
+                )
+            )
+
+        cell_number_i += (1.0 - observed) * jax.lax.cond(
+            pa_i == -1,
+            sample_no_parent,
+            expected_w_parent,
+            key,
+        )
+        cell_number = cell_number.at[:, i].set(jnp.round(cell_number_i))
+
+        return (key, cell_number), None
+
+    carry = (key, cell_number)
+    carry, _ = jax.lax.scan(scan_fun, carry, trees.node_id)
+    key, cell_number = carry
+
+    tumor_size = jnp.sum(cell_number, axis=1)  # pyright: ignore
+
+    trees = trees._replace(cell_number=cell_number, tumor_size=tumor_size)
+
+    return trees, key
+
+
+@jax.jit
+def log_multi_hypergeo(
+    K: jnp.ndarray,
+    k: jnp.ndarray,
+    N: jnp.ndarray,
+    n: jnp.ndarray,
+):
+    """This function computes the log density of the multivariate hypergeometric
+    distribution.
+    """
+
+    log_p = jnp.sum(gammaln(K + 1) - gammaln(K - k + 1) - gammaln(k + 1), axis=1)
+    log_p -= gammaln(N + 1) - gammaln(N - n + 1) - gammaln(n + 1)
+
+    return jnp.sum(log_p)
+
+
+@jax.jit
 def jlogp(
     trees: VectorizedTrees,
     F_mat: jnp.ndarray,
@@ -960,6 +1059,14 @@ def jlogp(
     # Compute the unnormalized joint log-likelihood
     jlogp_unnormalized = unnormalized_joint_logp(trees, eps)
 
+    # # Compute the probability of sampling C_seq cells
+    log_p_seq = log_multi_hypergeo(
+        trees.cell_number,
+        trees.seq_cell_number,
+        trees.tumor_size,
+        trees.seq_cell_number.sum(axis=1),
+    )
+
     # Compute the normalizing constant
     normalizing_constant = compute_normalizing_constant(trees, eps=eps, tau=tau)
 
@@ -968,6 +1075,7 @@ def jlogp(
         jlogp_unnormalized
         - jnp.log(normalizing_constant + eps) * trees.N_patients
         + _log_pt(trees, eps, tau) * nr_neg_samples
+        + log_p_seq
     )
 
     return jlogp_normalized
