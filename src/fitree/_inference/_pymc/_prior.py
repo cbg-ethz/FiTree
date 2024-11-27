@@ -60,28 +60,26 @@ def prior_horseshoe_fmat(
 
 def prior_regularized_horseshoe_fmat(
     n_mutations: int,
-    sparsity_sigma: float = 0.3,
-    c2: Optional[float] = None,
-    tau: Optional[float] = None,
-    lambdas_dof: int = 5,
+    halft_dof: int = 5,
+    s2: float = 0.05,
+    tau0: Optional[float] = None,
 ) -> pm.Model:
     nr_entries = n_mutations * (n_mutations + 1) // 2
 
     with pm.Model() as model:
-        tau_var = pm.HalfStudentT(
-            "tau", 2, sparsity_sigma, observed=tau
-        )  # type: ignore
-        lambdas = pm.HalfStudentT("lambdas_raw", lambdas_dof, shape=nr_entries)
-        c2 = pm.InverseGamma("c2", 1, 1, observed=c2)  # type: ignore
+        lambdas = pm.HalfStudentT("lambdas_raw", halft_dof, 1.0, shape=nr_entries)
+        c2 = pm.InverseGamma("c2", halft_dof, halft_dof * s2)  # type: ignore
+        tau_scale = s2 if tau0 is None else tau0
+        tau = pm.HalfStudentT("tau", halft_dof, tau_scale)
 
         lambdas_ = pm.Deterministic(
             "lambdas_tilde",
-            lambdas * pt.sqrt(c2 / (c2 + tau_var**2 * lambdas**2)),  # type: ignore
+            lambdas * pt.sqrt(c2 / (c2 + tau**2 * lambdas**2)),  # type: ignore
         )
 
         # Reparametrization trick for efficiency
         z = pm.Normal("z", 0.0, 1.0, shape=nr_entries)
-        betas = pm.Deterministic("betas", z * tau_var * lambdas_)
+        betas = pm.Deterministic("betas", z * tau * lambdas_)
 
         # Construct the theta matrix
         pm.Deterministic(
@@ -132,9 +130,9 @@ def prior_fitree(
     sparsity_b: float = 1.0,
     spike_scale: float = 0.001,
     slab_scale: float = 10.0,
-    sparsity_sigma: float = 0.3,
-    c2: Optional[float] = None,
-    tau: Optional[float] = None,
+    halft_dof: int = 5,
+    s2: float = 0.05,
+    tau0: Optional[float] = None,
     fmat_prior_type: str = "normal",
 ) -> pm.Model:
     mean_tumor_size, std_tumor_size = trees.compute_mean_std_tumor_size()
@@ -172,9 +170,9 @@ def prior_fitree(
     elif fmat_prior_type == "regularized_horseshoe":
         model = prior_regularized_horseshoe_fmat(
             n_mutations=trees.n_mutations,
-            sparsity_sigma=sparsity_sigma,
-            c2=c2,
-            tau=tau,
+            halft_dof=halft_dof,
+            s2=s2,
+            tau0=tau0,
         )
     else:
         raise ValueError(f"Unknown fmat_prior_type: {fmat_prior_type}")
