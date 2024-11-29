@@ -7,8 +7,14 @@ import jax
 import pymc as pm
 from scipy.optimize import minimize
 import arviz as az
+import gzip
+import pandas as pd
+from glob import glob
+
+
 from scripts.benchmarking_helpers import (
     prepare_SCIFIL_input,
+    prepare_fitclone_input,
     compute_diffusion_fitness_subclone,
     compute_diffusion_fitness_mutation,
     weighted_spearman,
@@ -21,7 +27,7 @@ from fitree import VectorizedTrees
 ######### Simulation setup #########
 
 # cluster setup
-N_MUTATIONS: list[int] = [5, 10, 15, 20]
+N_MUTATIONS: list[int] = [5]
 N_TREES: list[int] = [500]
 N_SIMULATIONS: int = 100
 NCORES: int = 100
@@ -68,6 +74,11 @@ rule all:
             i=range(N_SIMULATIONS),
         ),
         expand(
+            "data/muts5_trees{N_trees}/sim{i}/fitclone_input",
+            N_trees=N_TREES,
+            i=range(N_SIMULATIONS),
+        ),
+        expand(
             "results/muts{n_mutations}_trees{N_trees}/sim{i}/SCIFIL_result.txt",
             n_mutations=N_MUTATIONS,
             N_trees=N_TREES,
@@ -84,6 +95,15 @@ rule all:
             n_mutations=N_MUTATIONS,
             N_trees=N_TREES,
             i=range(N_SIMULATIONS),
+        ),
+        expand(
+            "results/muts5_trees{N_trees}/sim{i}/fitclone_results",
+            N_trees=N_TREES,
+            i=range(N_SIMULATIONS),
+        ),
+        expand(
+            "results/muts5_trees{N_trees}/sim99/fitclone_fitness.txt",
+            N_trees=N_TREES,
         ),
         expand(
             "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior.nc",
@@ -108,19 +128,17 @@ rule generate_data:
         "data/muts{n_mutations}_trees{N_trees}/sim{i}/fitness_matrix.npz",
         "data/muts{n_mutations}_trees{N_trees}/sim{i}/cohort.json",
         "data/muts{n_mutations}_trees{N_trees}/sim{i}/vectorized_trees.npz",
-        "data/muts{n_mutations}_trees{N_trees}/sim{i}/SCIFIL_input/tree_matrix.txt",
-        "data/muts{n_mutations}_trees{N_trees}/sim{i}/SCIFIL_input/cell_count.txt",
     threads: NCORES
     resources:
         runtime=240,
         tasks=1,
         nodes=1,
+        mem_mb_per_cpu=500,
     run:
         N_trees = int(wildcards.N_trees)
         n_mutations = int(wildcards.n_mutations)
         i = int(wildcards.i)
         rng = np.random.default_rng(2024 * i)
-
 
         F_mat = fitree.generate_fmat(
             rng=rng,
@@ -129,10 +147,11 @@ rule generate_data:
             epis_sigma=1.0,
             base_sparsity=0.1,
             positive_ratio=0.7,
+            epis_mean=0.1,
         )
         np.savez(output[0], F_mat=F_mat)
 
-        mu_vec = np.ones(n_mutations) * 3e-7
+        mu_vec = np.ones(n_mutations) * 3e-6
         cohort = fitree.generate_trees(
             rng=rng,
             n_mutations=n_mutations,
@@ -141,23 +160,69 @@ rule generate_data:
             F_mat=F_mat,
             common_beta=1.0,
             C_0=1e5,
-            C_seq=1e4,
+            C_seq=1e8,
             C_sampling=1e8,
             tau=1e-2,
             t_max=100,
             return_time=True,
-            use_joblib=True,
-            n_jobs=NCORES,
+            parallel=True,
         )
         fitree.save_cohort_to_json(cohort, output[1])
 
         vec_trees, _ = fitree.wrap_trees(cohort, augment_max_level=2, pseudo_count=1e-4)
         fitree.save_vectorized_trees_npz(vec_trees, output[2])
 
-        scifil_dir = os.path.dirname(output[3])
-        os.makedirs(scifil_dir, exist_ok=True)
 
-        prepare_SCIFIL_input(vec_trees, scifil_dir)
+rule prepare_SCIFIL_input:
+    input:
+        "data/muts{n_mutations}_trees{N_trees}/sim{i}/vectorized_trees.npz",
+    output:
+        "data/muts{n_mutations}_trees{N_trees}/sim{i}/SCIFIL_input/tree_matrix.txt",
+        "data/muts{n_mutations}_trees{N_trees}/sim{i}/SCIFIL_input/cell_count.txt",
+    threads: 1
+    resources:
+        runtime=60,
+        tasks=1,
+        nodes=1,
+    run:
+        vec_trees = fitree.load_vectorized_trees_npz(input[0])
+
+        scifil_output_dir = os.path.dirname(output[0])
+        os.makedirs(scifil_output_dir, exist_ok=True)
+
+        prepare_SCIFIL_input(vec_trees, scifil_output_dir)
+
+
+rule prepare_fitclone_input:
+    input:
+        "data/muts5_trees{N_trees}/sim{i}/vectorized_trees.npz",
+    output:
+        directory("data/muts5_trees{N_trees}/sim{i}/fitclone_input"),
+    threads: 1
+    resources:
+        runtime=60,
+        tasks=1,
+        nodes=1,
+    params:
+        fitclone_data_dir=os.path.abspath(
+            "data/muts5_trees{N_trees}/sim{i}/fitclone_input"
+        ),
+        fitclone_results_dir=os.path.abspath(
+            "results/muts5_trees{N_trees}/sim{i}/fitclone_results"
+        ),
+        fitclone_exe_dir="/Users/luox/Documents/Projects/fitclone/fitclone",
+        # fitclone_exe_dir="/cluster/home/luox/fitclone/fitclone",
+    run:
+        vec_trees = fitree.load_vectorized_trees_npz(input[0])
+
+        os.makedirs(params.fitclone_data_dir, exist_ok=True)
+
+        prepare_fitclone_input(
+            vec_trees,
+            params.fitclone_data_dir,
+            params.fitclone_results_dir,
+            params.fitclone_exe_dir,
+        )
 
 
 rule run_SCIFIL:
@@ -180,7 +245,7 @@ rule run_SCIFIL:
         runtime=60,
         tasks=1,
         nodes=1,
-        mem_mb_per_cpu=4096,
+        mem_mb_per_cpu=2048,
     shell:
         """
         cd {params.scifil_dir} && \
@@ -211,6 +276,112 @@ rule run_diffusion:
         np.savetxt(output[1], fitness)
 
 
+rule run_fitclone:
+    input:
+        directory("data/muts5_trees{N_trees}/sim{i}/fitclone_input"),
+    output:
+        directory("results/muts5_trees{N_trees}/sim{i}/fitclone_results"),
+    threads: 100
+    resources:
+        runtime=240,
+        tasks=1,
+        nodes=1,
+    shell:
+        """
+        cd {input} && \
+        chmod a+x run_fitclone.py && \
+        ./run_fitclone.py --start 0 --end 499 --workers 100
+        """
+
+
+rule process_fitclone_output:
+    input:
+        directory("results/muts5_trees{N_trees}/sim{i}/fitclone_results"),
+    output:
+        "results/muts5_trees{N_trees}/sim{i}/fitclone_fitness.txt",
+    threads: 1
+    resources:
+        runtime=60,
+        tasks=1,
+        nodes=1,
+    run:
+        # Paths
+        base_dir = input[0]
+        mapping_file = input[0] + "/mapping.txt"
+        output_file = output[0]
+
+        # Read mapping.txt
+        print(f"Reading mapping file: {mapping_file}")
+        mapping = pd.read_csv(
+            mapping_file, sep=" ", names=["tree_id", "node_id", "union_node_id"]
+        )
+
+        # Prepare output data
+        output_data = []
+
+        # Process each tree directory
+        for tree_id in mapping["tree_id"].unique():
+            # Use glob to dynamically find the correct directory
+            tree_dirs = glob(os.path.join(base_dir, f"tree_{tree_id}_*"))
+            if not tree_dirs:
+                print(f"No directory found for tree ID {tree_id}. Skipping.")
+                continue
+
+                # Use the first matching directory
+            tree_dir = tree_dirs[0]
+            infer_theta_file = os.path.join(tree_dir, "infer_theta.tsv.gz")
+
+            # Check if the infer_theta.tsv.gz file exists
+            if not os.path.exists(infer_theta_file):
+                print(
+                    f"File not found: {infer_theta_file}. Skipping tree ID {tree_id}."
+                )
+                continue
+
+            print(
+                f"Processing tree ID {tree_id}, directory: {tree_dir}, file: {infer_theta_file}"
+            )
+
+            # Unzip and read infer_theta.tsv.gz
+            with gzip.open(infer_theta_file, "rt") as f:
+                theta_data = pd.read_csv(f, sep="\t", header=None)
+
+                # Ignore the first column (column 0)
+            theta_data = theta_data.iloc[:, 1:]
+
+            # Select the last 100 rows
+            theta_last_100 = theta_data.iloc[-100:]
+
+            # Compute medians
+            medians = theta_last_100.median(axis=0).values
+
+            # Map medians to node IDs using mapping
+            tree_mapping = mapping[mapping["tree_id"] == tree_id]
+            for _, row in tree_mapping.iterrows():
+                node_id = int(row["node_id"])
+                union_node_id = row["union_node_id"]
+
+                # Get the corresponding median value
+                # Adjust index for columns, skipping column 0 in theta_data
+                if node_id - 1 < len(medians):
+                    median_value = medians[node_id - 1]  # Node IDs are 1-indexed
+                else:
+                    print(
+                        f"Node ID {node_id} out of range for tree ID {tree_id}. Skipping."
+                    )
+                    continue
+
+                    # Append to output data
+                output_data.append([tree_id, node_id, union_node_id, median_value])
+
+                # Save the output
+        output_df = pd.DataFrame(
+            output_data, columns=["tree_id", "node_id", "union_node_id", "median_value"]
+        )
+        output_df.to_csv(output_file, sep="\t", index=False)
+        print(f"Mapped medians saved to {output_file}.")
+
+
 rule run_fitree:
     input:
         "data/muts{n_mutations}_trees{N_trees}/sim{i}/cohort.json",
@@ -218,6 +389,7 @@ rule run_fitree:
         "data/muts{n_mutations}_trees{N_trees}/sim{i}/vectorized_trees.npz",
     output:
         "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior.nc",
+        "results/muts{n_mutations}_trees{N_trees}/sim{i}/F_mat_init.npz",
     threads: 4
     resources:
         runtime=240,
@@ -234,37 +406,19 @@ rule run_fitree:
         vec_trees = fitree.update_params(vec_trees, F_mat)
         cohort.lifetime_risk = float(fitree.compute_normalizing_constant(vec_trees))
 
-        model = fitree.prior_fitree(cohort)
         F_mat_init = fitree.greedy_init_fmat(vec_trees)
-        C_sampling_init = float(vec_trees.cell_number.sum(axis=1).mean())
-        nr_neg_samples_init = (
-            cohort.N_patients / cohort.lifetime_risk * (1 - cohort.lifetime_risk)
-        )
+        np.savez(output[1], F_mat=F_mat_init)
 
-        outputs = [[0.0]]
-        fitree_joint_likelihood.perform(
-            None,
-            (
-                F_mat_init,
-                C_sampling_init,
-                nr_neg_samples_init,
-            ),
-            outputs,
-        )
+        model = fitree.prior_fitree(cohort)
 
         with model:
-            start_vals = {
-                "fitness_matrix": F_mat_init,
-                "C_sampling": C_sampling_init,
-                "nr_neg_samples": nr_neg_samples_init,
-            }
             pm.Potential(
                 "joint_likelihood",
                 fitree_joint_likelihood(
                     model.fitness_matrix, model.C_sampling, model.nr_neg_samples
                 ),
             )
-            trace = pm.sample(draws=500, tune=500, chains=4, initvals=start_vals)
+            trace = pm.sample(draws=1000, tune=1000, chains=4)
 
         trace.to_netcdf(output[0])
 
@@ -285,7 +439,8 @@ rule evaluate:
             output.recoverable, "w"
         ) as f_rec:
             f_obs.write(
-                "FiTree "
+                "sim "
+                + "FiTree "
                 + "Diffusion_subclone "
                 + "Diffusion_mutation "
                 + "SCIFIL "
@@ -293,7 +448,8 @@ rule evaluate:
                 + "\n"
             )
             f_rec.write(
-                "FiTree "
+                "sim "
+                + "FiTree "
                 + "Diffusion_subclone "
                 + "Diffusion_mutation "
                 + "SCIFIL "
@@ -325,7 +481,7 @@ rule evaluate:
 
                 # Determine observed and recoverable mutations
                 observed = vec_trees.observed.sum(axis=0) > 0
-                recoverable = (observed + vec_trees.genotypes.sum(axis=1) <= 2) > 0
+                recoverable = (observed + (vec_trees.genotypes.sum(axis=1) <= 2)) > 0
 
                 # Calculate frequency
                 frequency = np.array(
@@ -391,8 +547,8 @@ rule evaluate:
 
                 # Write results to output files
                 f_obs.write(
-                    f"{fitree_observed_corr} {diffusion_subclone_observed_corr} {diffusion_mutation_observed_corr} {scifil_observed_corr} {freq_observed_corr}\n"
+                    f"{i} {fitree_observed_corr} {diffusion_subclone_observed_corr} {diffusion_mutation_observed_corr} {scifil_observed_corr} {freq_observed_corr}\n"
                 )
                 f_rec.write(
-                    f"{fitree_recoverable_corr} {diffusion_subclone_recoverable_corr} {diffusion_mutation_recoverable_corr} {scifil_recoverable_corr} {freq_recoverable_corr}\n"
+                    f"{i} {fitree_recoverable_corr} {diffusion_subclone_recoverable_corr} {diffusion_mutation_recoverable_corr} {scifil_recoverable_corr} {freq_recoverable_corr}\n"
                 )
