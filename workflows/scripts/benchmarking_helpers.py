@@ -1,7 +1,7 @@
 import os
 import numpy as np
 from scipy.optimize import minimize
-from scipy.stats import rankdata
+from scipy.stats import spearmanr
 
 from fitree import VectorizedTrees
 
@@ -157,10 +157,8 @@ def compute_diffusion_fitness_mutation(vec_trees: VectorizedTrees, eps: float = 
 
 def weighted_spearman(x, y, w=None):
     if w is None:
-        w = np.ones_like(x)
-    x_rank = rankdata(x)
-    y_rank = rankdata(y)
-    return np.corrcoef(x_rank * w, y_rank * w)[0, 1]
+        w = np.ones_like(x, dtype=bool)
+    return spearmanr(x[w], y[w])[0]
 
 
 def get_available_simulations(n_mutations, N_trees):
