@@ -257,43 +257,42 @@ def prepare_fitclone_input(
         f.write(mapping_str)
 
     # Define the script as a multiline string
-    script_content = f"""
-        #!/usr/bin/env python3
-        import os
-        import argparse
-        from multiprocessing import Pool
-        import yaml
+    script_content = f"""#!/usr/bin/env python3
+import os
+import argparse
+from multiprocessing import Pool
+import yaml
 
-        # Change to the working directory for revive_conditional.py
-        os.chdir('{exe_dir}')
-        exec(open('revive_conditional.py').read())
+# Change to the working directory for revive_conditional.py
+os.chdir('{exe_dir}')
+exec(open('revive_conditional.py').read())
 
-        def process_tree(tree_id):
-            print(f"Processing tree ID: {{tree_id}}")
-            param_file = f"{data_dir}/tree_{{tree_id}}/params.yaml"
-            if not os.path.exists(param_file):
-                print(f"Parameter file not found: {{param_file}}")
-                return
-            CondExp().run_with_config_file(param_file)
-            print(f"Finished processing tree ID: {{tree_id}}")
+def process_tree(tree_id):
+    print(f"Processing tree ID: {{tree_id}}")
+    param_file = f"{data_dir}/tree_{{tree_id}}/params.yaml"
+    if not os.path.exists(param_file):
+        print(f"Parameter file not found: {{param_file}}")
+        return
+    CondExp().run_with_config_file(param_file)
+    print(f"Finished processing tree ID: {{tree_id}}")
 
-        def main():
-            parser = argparse.ArgumentParser(description="Run CondExp with specified tree IDs.")
-            parser.add_argument('--start', type=int, required=True, help="Start of tree ID range (inclusive).")
-            parser.add_argument('--end', type=int, required=True, help="End of tree ID range (inclusive).")
-            parser.add_argument('--workers', type=int, default=4, help="Number of parallel workers to use.")
-            args = parser.parse_args()
+def main():
+    parser = argparse.ArgumentParser(description="Run CondExp with specified tree IDs.")
+    parser.add_argument('--start', type=int, required=True, help="Start of tree ID range (inclusive).")
+    parser.add_argument('--end', type=int, required=True, help="End of tree ID range (inclusive).")
+    parser.add_argument('--workers', type=int, default=4, help="Number of parallel workers to use.")
+    args = parser.parse_args()
 
-            # Generate the list of tree IDs
-            tree_ids = range(args.start, args.end + 1)
+    # Generate the list of tree IDs
+    tree_ids = range(args.start, args.end + 1)
 
-            # Use multiprocessing to process the tree IDs in parallel
-            with Pool(args.workers) as pool:
-                pool.map(process_tree, tree_ids)
+    # Use multiprocessing to process the tree IDs in parallel
+    with Pool(args.workers) as pool:
+        pool.map(process_tree, tree_ids)
 
-        if __name__ == "__main__":
-            main()
-    """  # noqa: E501
+if __name__ == "__main__":
+    main()
+"""  # noqa: E501
 
     # Write the script to the file
     with open(f"{data_dir}/run_fitclone.py", "w") as f:

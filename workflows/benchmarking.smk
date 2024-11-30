@@ -97,7 +97,7 @@ rule all:
             i=range(N_SIMULATIONS),
         ),
         expand(
-            "results/muts5_trees{N_trees}/sim{i}/fitclone_results",
+            "results/muts5_trees{N_trees}/sim{i}/fitclone_results/.done",
             N_trees=N_TREES,
             i=range(N_SIMULATIONS),
         ),
@@ -210,8 +210,8 @@ rule prepare_fitclone_input:
         fitclone_results_dir=os.path.abspath(
             "results/muts5_trees{N_trees}/sim{i}/fitclone_results"
         ),
-        fitclone_exe_dir="/Users/luox/Documents/Projects/fitclone/fitclone",
-        # fitclone_exe_dir="/cluster/home/luox/fitclone/fitclone",
+        # fitclone_exe_dir="/Users/luox/Documents/Projects/fitclone/fitclone",
+        fitclone_exe_dir="/cluster/home/luox/fitclone/fitclone",
     run:
         vec_trees = fitree.load_vectorized_trees_npz(input[0])
 
@@ -280,7 +280,7 @@ rule run_fitclone:
     input:
         directory("data/muts5_trees{N_trees}/sim{i}/fitclone_input"),
     output:
-        directory("results/muts5_trees{N_trees}/sim{i}/fitclone_results"),
+        "results/muts5_trees{N_trees}/sim{i}/fitclone_results/.done",
     threads: 100
     resources:
         runtime=240,
@@ -290,13 +290,14 @@ rule run_fitclone:
         """
         cd {input} && \
         chmod a+x run_fitclone.py && \
-        ./run_fitclone.py --start 0 --end 499 --workers 100
+        ./run_fitclone.py --start 0 --end 499 --workers 100 && \
+        touch {output}
         """
 
 
 rule process_fitclone_output:
     input:
-        directory("results/muts5_trees{N_trees}/sim{i}/fitclone_results"),
+        "results/muts5_trees{N_trees}/sim{i}/fitclone_results/.done",
     output:
         "results/muts5_trees{N_trees}/sim{i}/fitclone_fitness.txt",
     threads: 1
