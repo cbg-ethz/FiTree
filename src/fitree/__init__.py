@@ -9,7 +9,7 @@ from ._trees import (
     save_vectorized_trees_npz,
     load_vectorized_trees_npz,
 )
-from ._simulation import generate_trees, sample_spike_and_slab, generate_fmat
+from ._simulation import generate_trees, generate_fmat
 from ._plot import (
     plot_fmat,
     plot_fmat_posterior,
@@ -38,7 +38,6 @@ __all__ = [
     "save_vectorized_trees_npz",
     "load_vectorized_trees_npz",
     "generate_trees",
-    "sample_spike_and_slab",
     "generate_fmat",
     "plot_fmat",
     "plot_fmat_posterior",

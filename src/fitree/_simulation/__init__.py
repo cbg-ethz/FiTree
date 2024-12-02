@@ -2,6 +2,6 @@
 """
 
 from ._simulate import generate_trees
-from ._fmat import sample_spike_and_slab, generate_fmat
+from ._fmat import generate_fmat
 
-__all__ = ["generate_trees", "sample_spike_and_slab", "generate_fmat"]
+__all__ = ["generate_trees", "generate_fmat"]
