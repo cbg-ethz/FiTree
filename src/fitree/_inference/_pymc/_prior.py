@@ -61,13 +61,16 @@ def prior_horseshoe_fmat(
 def prior_regularized_horseshoe_fmat(
     n_mutations: int,
     halft_dof: int = 5,
-    s2: float = 0.05,
+    local_scale: float = 0.2,
+    s2: float = 0.04,
     tau0: Optional[float] = None,
 ) -> pm.Model:
     nr_entries = n_mutations * (n_mutations + 1) // 2
 
     with pm.Model() as model:
-        lambdas = pm.HalfStudentT("lambdas_raw", halft_dof, 1.0, shape=nr_entries)
+        lambdas = pm.HalfStudentT(
+            "lambdas_raw", halft_dof, local_scale, shape=nr_entries
+        )
         c2 = pm.InverseGamma("c2", halft_dof, halft_dof * s2)  # type: ignore
         tau_scale = s2 if tau0 is None else tau0
         tau = pm.HalfStudentT("tau", halft_dof, tau_scale)
@@ -131,7 +134,8 @@ def prior_fitree(
     spike_scale: float = 0.001,
     slab_scale: float = 10.0,
     halft_dof: int = 5,
-    s2: float = 0.05,
+    local_scale: float = 0.2,
+    s2: float = 0.04,
     tau0: Optional[float] = None,
     fmat_prior_type: str = "normal",
 ) -> pm.Model:
@@ -171,6 +175,7 @@ def prior_fitree(
         model = prior_regularized_horseshoe_fmat(
             n_mutations=trees.n_mutations,
             halft_dof=halft_dof,
+            local_scale=local_scale,
             s2=s2,
             tau0=tau0,
         )
