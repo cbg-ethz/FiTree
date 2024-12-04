@@ -977,14 +977,7 @@ def sample_cell_numbers(trees: VectorizedTrees, key: jax.dtypes.prng_key):
         cell_number_i *= observed
 
         def sample_no_parent(key):
-            return jax.lax.cond(
-                lam_i <= 0.0,
-                lambda: sample_nb(key, C_0 * rho_i, _pt(alpha_i, beta, lam_i, t)),
-                lambda: jax.random.gamma(key, a=C_0 * rho_i, shape=t.shape)
-                * alpha_i
-                / lam_i
-                * jnp.exp(lam_i * t),
-            )
+            return sample_nb(key, C_0 * rho_i, _pt(alpha_i, beta, lam_i, t))
 
         def expected_w_parent(key):
             lam_diff = lam_i - delta_pa_i
@@ -996,7 +989,11 @@ def sample_cell_numbers(trees: VectorizedTrees, key: jax.dtypes.prng_key):
                     [
                         lambda: 1.0 / (delta_pa_i - lam_i) * jnp.ones_like(t),
                         lambda: 1.0 / r_pa_i * t,
-                        lambda: jnp.zeros_like(t),
+                        lambda: (
+                            jss.gamma(r_pa_i)
+                            / jnp.power(lam_i - delta_pa_i, r_pa_i)
+                            * jnp.ones_like(t)
+                        ),
                     ],
                 )
             )
@@ -1043,7 +1040,9 @@ def log_multi_hypergeo(
 def jlogp(
     trees: VectorizedTrees,
     F_mat: jnp.ndarray,
+    C_s: jnp.ndarray,
     nr_neg_samples: int,
+    key: jax.dtypes.prng_key,
     eps: float = 1e-64,
     tau: float = 1e-2,
 ):
@@ -1053,8 +1052,14 @@ def jlogp(
     maximum time. (See Theorem 3 in the supplement)
     """
 
+    # Update C_s in the trees object
+    trees = trees._replace(C_s=C_s)
+
     # Update the growth parameters based on the fitness matrix
     trees = update_params(trees, F_mat)
+
+    # Sample the cell numbers
+    trees, key = sample_cell_numbers(trees, key)
 
     # Compute the unnormalized joint log-likelihood
     jlogp_unnormalized = unnormalized_joint_logp(trees, eps)
@@ -1078,4 +1083,4 @@ def jlogp(
         + log_p_seq
     )
 
-    return jlogp_normalized
+    return jlogp_normalized, key
