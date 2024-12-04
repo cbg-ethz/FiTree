@@ -62,18 +62,37 @@ def plot_fmat_posterior(
 
     tril_indices = np.tril_indices(n_mutations, k=0)
 
+    # # Determine global x-axis limits based on F_mat_posterior values
+    # global_min = np.min(F_mat_posterior)
+    # global_max = np.max(F_mat_posterior)
+    # x_lim = max(abs(global_min), abs(global_max))  # Symmetric range for centering
+
     fig, axes = plt.subplots(n_mutations, n_mutations, figsize=figsize)
 
     for i, j in zip(*tril_indices):
         ax = axes[i, j]
-        sns.histplot(F_mat_posterior[:, i, j], ax=ax, kde=True)
+        sns.histplot(
+            F_mat_posterior[:, i, j], ax=ax, kde=True, bins="sturges", alpha=0.2
+        )
 
         if true_F_mat is not None:
-            ax.axvline(true_F_mat[i, j], color="darkgreen", linestyle="--")
+            ax.axvline(true_F_mat[i, j], color="darkred", linestyle="--", linewidth=3)
+
+        ax.axvline(0, color="grey", linestyle="--", linewidth=1)
 
         # Remove y-axis labels and titles for all subplots
         ax.set_ylabel("")
         ax.set_xlabel("")
+
+        # Set x-axis limits
+        local_min = np.min(F_mat_posterior[:, i, j])
+        local_max = np.max(F_mat_posterior[:, i, j])
+        if true_F_mat is not None:
+            local_min = min(local_min, true_F_mat[i, j])  # pyright: ignore
+            local_max = max(local_max, true_F_mat[i, j])  # pyright: ignore
+
+        local_x_lim = max(abs(local_min), abs(local_max)) * 1.1
+        ax.set_xlim(-local_x_lim, local_x_lim)
 
     # # Hide the upper triangular subplots
     for i in range(n_mutations):
