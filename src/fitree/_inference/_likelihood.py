@@ -6,6 +6,8 @@ from jax import lax
 from jax._src.lax.lax import _const as _lax_const
 from jax._src.scipy.special import gammaln
 
+import tensorflow_probability.substrates.jax as tfp
+
 from fitree._inference._utils import (
     ETA_VEC,
     BETA_VEC,
@@ -485,7 +487,7 @@ def _mlogp(
                 p=_pt(tree.alpha[i], tree.beta, tree.lam[i], t),
             ),
             lambda: jnp.log(
-                jss.betainc(
+                tfp.math.betainc(
                     a=tree.C_0 * tree.rho[i],
                     b=x + 1.0,
                     x=_pt(tree.alpha[i], tree.beta, tree.lam[i], t),
@@ -603,7 +605,7 @@ def jlogp_no_parent(
             t,
         ),
         lambda: jnp.log(
-            jss.betainc(
+            tfp.math.betainc(
                 a=par["C_0"] * par["rho"],
                 b=x + 1.0,
                 x=_pt(par["alpha"], par["beta"], par["lam"], t),
@@ -1020,6 +1022,72 @@ def sample_cell_numbers(trees: VectorizedTrees, key: jax.dtypes.prng_key):
 
 
 @jax.jit
+def estimate_cell_numbers(trees: VectorizedTrees):
+    # Estimate observed cell numbers using sequenced cell numbers
+    frequencies = trees.seq_cell_number / trees.seq_cell_number.sum(axis=1).reshape(
+        -1, 1
+    )
+    cell_number = jnp.round(jnp.array(frequencies * trees.tumor_size.reshape(-1, 1)))
+
+    t = trees.sampling_time
+    C_0 = trees.C_0
+    beta = trees.beta
+
+    # Compute the unobserved cell numbers using expected values
+    def scan_fun(cell_number, i):
+        pa_i = trees.parent_id[i]
+        lam_i = trees.lam[i]
+        nu_i = trees.nu[i]
+        alpha_i = trees.alpha[i]
+        rho_i = trees.rho[i]
+        delta_pa_i = trees.delta[pa_i]
+        r_pa_i = trees.r[pa_i]
+        observed = trees.observed[:, i].astype(jnp.float64)
+        cell_number_i = cell_number[:, i]
+        cell_number_i *= observed
+
+        def expected_no_parent():
+            p = _pt(alpha_i, beta, lam_i, t)
+            return C_0 * rho_i * (1 - p) / p
+
+        def expected_w_parent():
+            lam_diff = lam_i - delta_pa_i
+            return (
+                nu_i
+                * cell_number[:, pa_i]
+                * jax.lax.switch(
+                    (jnp.sign(lam_diff) + 1).astype(jnp.int32),
+                    [
+                        lambda: 1.0 / (delta_pa_i - lam_i) * jnp.ones_like(t),
+                        lambda: 1.0 / r_pa_i * t,
+                        lambda: (
+                            jss.gamma(r_pa_i)
+                            / jnp.power(lam_i - delta_pa_i, r_pa_i)
+                            * jnp.ones_like(t)
+                        ),
+                    ],
+                )
+            )
+
+        cell_number_i += (1.0 - observed) * jax.lax.cond(
+            pa_i == -1,
+            expected_no_parent,
+            expected_w_parent,
+        )
+        cell_number = cell_number.at[:, i].set(jnp.round(cell_number_i))
+
+        return cell_number, None
+
+    cell_number, _ = jax.lax.scan(scan_fun, cell_number, trees.node_id)
+
+    tumor_size = jnp.sum(cell_number, axis=1)  # pyright: ignore
+
+    trees = trees._replace(cell_number=cell_number, tumor_size=tumor_size)
+
+    return trees
+
+
+@jax.jit
 def log_multi_hypergeo(
     K: jnp.ndarray,
     k: jnp.ndarray,
@@ -1037,7 +1105,7 @@ def log_multi_hypergeo(
 
 
 @jax.jit
-def jlogp(
+def jlogp_sampled(
     trees: VectorizedTrees,
     F_mat: jnp.ndarray,
     C_s: jnp.ndarray,
@@ -1084,3 +1152,52 @@ def jlogp(
     )
 
     return jlogp_normalized, key
+
+
+@jax.jit
+def jlogp(
+    trees: VectorizedTrees,
+    F_mat: jnp.ndarray,
+    C_s: jnp.ndarray,
+    nr_neg_samples: int,
+    eps: float = 1e-64,
+    tau: float = 1e-2,
+):
+    """This function computes the joint log-likelihood of a set of trees
+    given the fitness matrix F_mat after normalizing it by the marginal
+    likelihood of the sampling event occurring before some predefined
+    maximum time. (See Theorem 3 in the supplement)
+    """
+
+    # Update C_s in the trees object
+    trees = trees._replace(C_s=C_s)
+
+    # Update the growth parameters based on the fitness matrix
+    trees = update_params(trees, F_mat)
+
+    # Estimate the cell numbers
+    trees = estimate_cell_numbers(trees)
+
+    # Compute the unnormalized joint log-likelihood
+    jlogp_unnormalized = unnormalized_joint_logp(trees, eps)
+
+    # # Compute the probability of sampling C_seq cells
+    log_p_seq = log_multi_hypergeo(
+        trees.cell_number,
+        trees.seq_cell_number,
+        trees.tumor_size,
+        trees.seq_cell_number.sum(axis=1),
+    )
+
+    # Compute the normalizing constant
+    normalizing_constant = compute_normalizing_constant(trees, eps=eps, tau=tau)
+
+    # Compute the normalized log-likelihood
+    jlogp_normalized = (
+        jlogp_unnormalized
+        - jnp.log(normalizing_constant + eps) * trees.N_patients
+        + _log_pt(trees, eps, tau) * nr_neg_samples
+        + log_p_seq
+    )
+
+    return jlogp_normalized

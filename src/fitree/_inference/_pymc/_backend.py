@@ -2,7 +2,7 @@ import pytensor.tensor as pt
 import numpy as np
 import jax
 
-from fitree._inference._likelihood import jlogp
+from fitree._inference._likelihood import jlogp, jlogp_sampled
 from fitree._trees._wrapper import wrap_trees
 from fitree._trees import TumorTreeCohort
 
@@ -25,12 +25,15 @@ class FiTreeJointLikelihood(Op):
         eps: float = 1e-64,
         tau: float = 1e-2,
         seed: int = 0,
+        jlogp_version: str = "expected",
     ):
         self.vectorized_trees, _ = wrap_trees(trees, augment_max_level, pseudo_count)
         self.eps = eps
         self.tau = tau
 
         self.key = jax.random.PRNGKey(seed)
+
+        self.jlogp_version = jlogp_version
 
     def perform(self, node, inputs, outputs):  # type: ignore
         (
@@ -39,15 +42,25 @@ class FiTreeJointLikelihood(Op):
             nr_neg_samples,
         ) = inputs
 
-        joint_likelihood, self.key = jlogp(
-            trees=self.vectorized_trees,
-            F_mat=F_mat,
-            C_s=C_s,
-            nr_neg_samples=nr_neg_samples,
-            key=self.key,
-            eps=self.eps,
-            tau=self.tau,
-        )
+        if self.jlogp_version == "sampled":
+            joint_likelihood, self.key = jlogp_sampled(
+                trees=self.vectorized_trees,
+                F_mat=F_mat,
+                C_s=C_s,
+                nr_neg_samples=nr_neg_samples,
+                key=self.key,
+                eps=self.eps,
+                tau=self.tau,
+            )
+        else:
+            joint_likelihood = jlogp(
+                trees=self.vectorized_trees,
+                F_mat=F_mat,
+                C_s=C_s,
+                nr_neg_samples=nr_neg_samples,
+                eps=self.eps,
+                tau=self.tau,
+            )
 
         if np.isnan(joint_likelihood):
             joint_likelihood = -np.inf
