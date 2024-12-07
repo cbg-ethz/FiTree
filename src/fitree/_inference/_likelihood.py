@@ -1088,6 +1088,62 @@ def estimate_cell_numbers(trees: VectorizedTrees):
 
 
 @jax.jit
+def log_n_choose_k(
+    n: jnp.ndarray,
+    k: jnp.ndarray,
+):
+    """This function computes the log of the binomial coefficient
+    n choose k.
+    """
+
+    def case_0():
+        # k is 0 or n
+        return 0.0
+
+    def case_1():
+        # k is 1 or n - 1
+        return jnp.log(n)
+
+    def case_2():
+        # both n and k are small
+        return gammaln(n + 1) - gammaln(k + 1) - gammaln(n - k + 1)
+
+    def case_3():
+        # n is large and k is small
+        return (
+            k * (jnp.log(n) + 1 - jnp.log(k))
+            - 1 / 2 * jnp.log(2 * jnp.pi * k)
+            - k**2 / (2 * n)
+        )
+
+    def case_4():
+        # n is large and k is large
+        return (
+            1 / 2 * (jnp.log(n) - jnp.log(2 * jnp.pi * k) - jnp.log(n - k))
+            + n * jnp.log(n)
+            - k * jnp.log(k)
+            - (n - k) * jnp.log(n - k)
+        )
+
+    return jnp.select(
+        [
+            (k == 0.0) | (k == n),
+            (k == 1.0) | (k == n - 1),
+            n <= 1e8,
+            (n > 1e8) & (k <= 0.1 * n),
+            (n > 1e8) & (k > 0.1 * n),
+        ],
+        [
+            case_0(),
+            case_1(),
+            case_2(),
+            case_3(),
+            case_4(),
+        ],
+    )
+
+
+@jax.jit
 def log_multi_hypergeo(
     K: jnp.ndarray,
     k: jnp.ndarray,
@@ -1098,8 +1154,8 @@ def log_multi_hypergeo(
     distribution.
     """
 
-    log_p = jnp.sum(gammaln(K + 1) - gammaln(K - k + 1) - gammaln(k + 1), axis=1)
-    log_p -= gammaln(N + 1) - gammaln(N - n + 1) - gammaln(n + 1)
+    log_p = jnp.sum(log_n_choose_k(K, k), axis=1)
+    log_p -= log_n_choose_k(N, n)
 
     return jnp.sum(log_p)
 

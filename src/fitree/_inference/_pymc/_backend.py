@@ -64,4 +64,7 @@ class FiTreeJointLikelihood(Op):
 
         if np.isnan(joint_likelihood):
             joint_likelihood = -np.inf
+
+        if joint_likelihood > 0:
+            joint_likelihood = 0.0
         outputs[0][0] = np.array(joint_likelihood, dtype=np.float64)
