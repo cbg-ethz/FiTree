@@ -6,7 +6,6 @@ from jax import lax
 from jax._src.lax.lax import _const as _lax_const
 from jax._src.scipy.special import gammaln
 
-import tensorflow_probability.substrates.jax as tfp
 
 from fitree._inference._utils import (
     ETA_VEC,
@@ -487,7 +486,7 @@ def _mlogp(
                 p=_pt(tree.alpha[i], tree.beta, tree.lam[i], t),
             ),
             lambda: jnp.log(
-                tfp.math.betainc(
+                jss.betainc(
                     a=tree.C_0 * tree.rho[i],
                     b=x + 1.0,
                     x=_pt(tree.alpha[i], tree.beta, tree.lam[i], t),
@@ -605,7 +604,7 @@ def jlogp_no_parent(
             t,
         ),
         lambda: jnp.log(
-            tfp.math.betainc(
+            jss.betainc(
                 a=par["C_0"] * par["rho"],
                 b=x + 1.0,
                 x=_pt(par["alpha"], par["beta"], par["lam"], t),
