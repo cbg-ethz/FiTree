@@ -27,16 +27,14 @@ from fitree import VectorizedTrees
 ######### Simulation setup #########
 
 # cluster setup
-N_MUTATIONS: list[int] = [5]
+N_MUTATIONS: list[int] = [5, 10, 15]
 N_TREES: list[int] = [500]
 N_SIMULATIONS: int = 100
-NCORES: int = 100
 
 # # local setup
 # N_MUTATIONS: list[int] = [5]
 # N_TREES: list[int] = [4]
 # N_SIMULATIONS: int = 2
-# NCORES: int = 4
 
 ######### Workflow #########
 
@@ -74,7 +72,7 @@ rule all:
             i=range(N_SIMULATIONS),
         ),
         expand(
-            "data/muts5_trees{N_trees}/sim{i}/fitclone_input",
+            "data/muts5_trees{N_trees}/sim{i}/fitclone_input/.done",
             N_trees=N_TREES,
             i=range(N_SIMULATIONS),
         ),
@@ -102,8 +100,9 @@ rule all:
             i=range(N_SIMULATIONS),
         ),
         expand(
-            "results/muts5_trees{N_trees}/sim99/fitclone_fitness.txt",
+            "results/muts5_trees{N_trees}/sim{i}/fitclone_fitness.txt",
             N_trees=N_TREES,
+            i=range(N_SIMULATIONS),
         ),
         expand(
             "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior.nc",
@@ -111,16 +110,16 @@ rule all:
             N_trees=N_TREES,
             i=range(N_SIMULATIONS),
         ),
-        expand(
-            "results/muts{n_mutations}_trees{N_trees}/evaluations_observed.txt",
-            n_mutations=N_MUTATIONS,
-            N_trees=N_TREES,
-        ),
-        expand(
-            "results/muts{n_mutations}_trees{N_trees}/evaluations_recoverable.txt",
-            n_mutations=N_MUTATIONS,
-            N_trees=N_TREES,
-        ),
+        # expand(
+        #     "results/muts{n_mutations}_trees{N_trees}/evaluations_observed.txt",
+        #     n_mutations=N_MUTATIONS,
+        #     N_trees=N_TREES,
+        # ),
+        # expand(
+        #     "results/muts{n_mutations}_trees{N_trees}/evaluations_recoverable.txt",
+        #     n_mutations=N_MUTATIONS,
+        #     N_trees=N_TREES,
+        # ),
 
 
 rule generate_data:
@@ -128,7 +127,7 @@ rule generate_data:
         "data/muts{n_mutations}_trees{N_trees}/sim{i}/fitness_matrix.npz",
         "data/muts{n_mutations}_trees{N_trees}/sim{i}/cohort.json",
         "data/muts{n_mutations}_trees{N_trees}/sim{i}/vectorized_trees.npz",
-    threads: NCORES
+    threads: 100
     resources:
         runtime=240,
         tasks=1,
@@ -143,11 +142,6 @@ rule generate_data:
         F_mat = fitree.generate_fmat(
             rng=rng,
             n_mutations=n_mutations,
-            base_sigma=0.3,
-            epis_sigma=1.0,
-            base_sparsity=0.1,
-            positive_ratio=0.7,
-            epis_mean=0.1,
         )
         np.savez(output[0], F_mat=F_mat)
 
@@ -160,7 +154,7 @@ rule generate_data:
             F_mat=F_mat,
             common_beta=1.0,
             C_0=1e5,
-            C_seq=1e8,
+            C_seq=1e4,
             C_sampling=1e8,
             tau=1e-2,
             t_max=100,
@@ -169,7 +163,7 @@ rule generate_data:
         )
         fitree.save_cohort_to_json(cohort, output[1])
 
-        vec_trees, _ = fitree.wrap_trees(cohort, augment_max_level=2, pseudo_count=1e-4)
+        vec_trees, _ = fitree.wrap_trees(cohort, augment_max_level=2)
         fitree.save_vectorized_trees_npz(vec_trees, output[2])
 
 
@@ -197,12 +191,13 @@ rule prepare_fitclone_input:
     input:
         "data/muts5_trees{N_trees}/sim{i}/vectorized_trees.npz",
     output:
-        directory("data/muts5_trees{N_trees}/sim{i}/fitclone_input"),
+        "data/muts5_trees{N_trees}/sim{i}/fitclone_input/.done",
     threads: 1
     resources:
         runtime=60,
         tasks=1,
         nodes=1,
+        mem_mb_per_cpu=100,
     params:
         fitclone_data_dir=os.path.abspath(
             "data/muts5_trees{N_trees}/sim{i}/fitclone_input"
@@ -223,6 +218,9 @@ rule prepare_fitclone_input:
             params.fitclone_results_dir,
             params.fitclone_exe_dir,
         )
+
+        with open(output[0], "w") as f:
+            f.write("")
 
 
 rule run_SCIFIL:
@@ -278,7 +276,7 @@ rule run_diffusion:
 
 rule run_fitclone:
     input:
-        directory("data/muts5_trees{N_trees}/sim{i}/fitclone_input"),
+        "data/muts5_trees{N_trees}/sim{i}/fitclone_input/.done",
     output:
         "results/muts5_trees{N_trees}/sim{i}/fitclone_results/.done",
     threads: 100
@@ -286,10 +284,13 @@ rule run_fitclone:
         runtime=240,
         tasks=1,
         nodes=1,
+        mem_mb_per_cpu=800,
     shell:
         """
         cd {input} && \
         chmod a+x run_fitclone.py && \
+        export NUMEXPR_MAX_THREADS=100 && \
+        export OPENBLAS_NUM_THREADS=1 && \
         ./run_fitclone.py --start 0 --end 499 --workers 100 && \
         touch {output}
         """
@@ -305,10 +306,11 @@ rule process_fitclone_output:
         runtime=60,
         tasks=1,
         nodes=1,
+        mem_mb_per_cpu=100,
     run:
         # Paths
-        base_dir = input[0]
-        mapping_file = input[0] + "/mapping.txt"
+        base_dir = os.path.dirname(input[0])
+        mapping_file = os.path.join(base_dir, "mapping.txt")
         output_file = output[0]
 
         # Read mapping.txt
@@ -391,24 +393,37 @@ rule run_fitree:
     output:
         "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior.nc",
         "results/muts{n_mutations}_trees{N_trees}/sim{i}/F_mat_init.npz",
-    threads: 4
+    threads: 12
     resources:
         runtime=240,
         tasks=1,
         nodes=1,
     run:
+        n_mutations = int(wildcards.n_mutations)
         cohort = fitree.load_cohort_from_json(input[0])
         F_mat = np.load(input[1])["F_mat"]
         vec_trees = fitree.load_vectorized_trees_npz(input[2])
 
         fitree_joint_likelihood = fitree.FiTreeJointLikelihood(
-            cohort, augment_max_level=2, pseudo_count=1e-4
+            cohort, augment_max_level=2
         )
         vec_trees = fitree.update_params(vec_trees, F_mat)
         cohort.lifetime_risk = float(fitree.compute_normalizing_constant(vec_trees))
 
         F_mat_init = fitree.greedy_init_fmat(vec_trees)
         np.savez(output[1], F_mat=F_mat_init)
+
+        p0 = np.round(np.sqrt(5 * (n_mutations ** 2 + n_mutations) / 2 * (2 * 0.95 - 1)))
+        D = n_mutations * (n_mutations + 1) / 2
+        N = cohort.N_patients
+        tau0 = p0 / (D - p0) / np.sqrt(N)
+        model = fitree.prior_fitree(
+            cohort, 
+            fmat_prior_type="regularized_horseshoe", 
+            tau0=tau0,
+            local_scale=0.2,
+            s2=0.04,
+        )
 
         model = fitree.prior_fitree(cohort)
 
@@ -419,7 +434,7 @@ rule run_fitree:
                     model.fitness_matrix, model.C_sampling, model.nr_neg_samples
                 ),
             )
-            trace = pm.sample(draws=1000, tune=1000, chains=4)
+            trace = pm.sample(draws=1000, tune=1000, chains=12)
 
         trace.to_netcdf(output[0])
 
@@ -429,6 +444,11 @@ rule evaluate:
         observed="results/muts{n_mutations}_trees{N_trees}/evaluations_observed.txt",
         recoverable="results/muts{n_mutations}_trees{N_trees}/evaluations_recoverable.txt",
     threads: 1
+    resources:
+        runtime=60,
+        tasks=1,
+        nodes=1,
+        mem_mb_per_cpu=100,
     run:
         # Extract the list of available simulations
         available_sims = get_available_simulations(
