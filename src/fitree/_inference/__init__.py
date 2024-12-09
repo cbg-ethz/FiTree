@@ -2,11 +2,9 @@
 """
 
 from ._likelihood import jlogp, update_params, compute_normalizing_constant
-from ._pymc import (
-    FiTreeJointLikelihood,
-    prior_fitree,
-)
 from ._initialization import recoverable_entries, greedy_init_fmat
+from ._backend import FiTreeJointLikelihood
+from ._prior import prior_fitree
 
 
 __all__ = [
