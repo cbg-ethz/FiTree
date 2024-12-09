@@ -413,13 +413,15 @@ rule run_fitree:
         F_mat_init = fitree.greedy_init_fmat(vec_trees)
         np.savez(output[1], F_mat=F_mat_init)
 
-        p0 = np.round(np.sqrt(5 * (n_mutations ** 2 + n_mutations) / 2 * (2 * 0.95 - 1)))
+        p0 = np.round(
+            np.sqrt(5 * (n_mutations**2 + n_mutations) / 2 * (2 * 0.95 - 1))
+        )
         D = n_mutations * (n_mutations + 1) / 2
         N = cohort.N_patients
         tau0 = p0 / (D - p0) / np.sqrt(N)
         model = fitree.prior_fitree(
-            cohort, 
-            fmat_prior_type="regularized_horseshoe", 
+            cohort,
+            fmat_prior_type="regularized_horseshoe",
             tau0=tau0,
             local_scale=0.2,
             s2=0.04,
