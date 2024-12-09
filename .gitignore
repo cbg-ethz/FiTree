@@ -181,3 +181,4 @@ results/
 *.sh
 tests/mtbp/
 src/fitree/_mtbp
+src/fitree/_inference/_numpyro
