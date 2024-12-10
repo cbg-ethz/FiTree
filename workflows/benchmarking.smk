@@ -142,6 +142,8 @@ rule generate_data:
         F_mat = fitree.generate_fmat(
             rng=rng,
             n_mutations=n_mutations,
+            mean=0.1,
+            sigma=0.03,
         )
         np.savez(output[0], F_mat=F_mat)
 
@@ -197,7 +199,7 @@ rule prepare_fitclone_input:
         runtime=60,
         tasks=1,
         nodes=1,
-        mem_mb_per_cpu=100,
+        mem_mb_per_cpu=200,
     params:
         fitclone_data_dir=os.path.abspath(
             "data/muts5_trees{N_trees}/sim{i}/fitclone_input"

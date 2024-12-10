@@ -4,6 +4,7 @@ import pymc as pm
 import jax
 import arviz as az
 import os
+import numpy as np
 
 jax.config.update("jax_enable_x64", True)
 
@@ -55,10 +56,10 @@ rule run_fitree_with_init:
         RHS_local_scale = float(wildcards.RHS_local_scale)
         RHS_s2 = float(wildcards.RHS_s2)
 
-        AML_cohort = fitree.load_cohort_from_json(input)
+        cohort = fitree.load_cohort_from_json(input[0])
 
         fitree_joint_likelihood = fitree.FiTreeJointLikelihood(
-            AML_cohort, augment_max_level=2
+            cohort, augment_max_level=2
         )
 
         D = 31 * 32 / 2
@@ -73,14 +74,12 @@ rule run_fitree_with_init:
             s2=RHS_s2,
         )
 
-        AML_vec_trees, _ = fitree.wrap_trees(AML_cohort, augment_max_level=2)
+        AML_vec_trees, _ = fitree.wrap_trees(cohort, augment_max_level=2)
 
         F_mat_init = fitree.greedy_init_fmat(AML_vec_trees)
-        C_sampling_init, _ = AML_cohort.compute_mean_std_tumor_size()
+        C_sampling_init, _ = cohort.compute_mean_std_tumor_size()
         nr_neg_samples_init = (
-            AML_cohort.N_patients
-            / AML_cohort.lifetime_risk
-            * (1 - AML_cohort.lifetime_risk)
+            cohort.N_patients / cohort.lifetime_risk * (1 - cohort.lifetime_risk)
         )
 
         init_vals = {
@@ -126,10 +125,10 @@ rule run_fitree_without_init:
         RHS_local_scale = float(wildcards.RHS_local_scale)
         RHS_s2 = float(wildcards.RHS_s2)
 
-        AML_cohort = fitree.load_cohort_from_json(input)
+        cohort = fitree.load_cohort_from_json(input[0])
 
         fitree_joint_likelihood = fitree.FiTreeJointLikelihood(
-            AML_cohort, augment_max_level=2
+            cohort, augment_max_level=2
         )
 
         D = 31 * 32 / 2
@@ -144,7 +143,7 @@ rule run_fitree_without_init:
             s2=RHS_s2,
         )
 
-        AML_vec_trees, _ = fitree.wrap_trees(AML_cohort, augment_max_level=2)
+        AML_vec_trees, _ = fitree.wrap_trees(cohort, augment_max_level=2)
 
         with model:
             pm.Potential(
