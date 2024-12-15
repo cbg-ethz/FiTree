@@ -5,6 +5,7 @@ import jax
 import arviz as az
 import os
 import numpy as np
+import pytensor
 
 jax.config.update("jax_enable_x64", True)
 
@@ -16,8 +17,10 @@ os.environ["NUMEXPR_MAX_THREADS"] = "128"
 
 N_TUNE: list[int] = [200, 500]
 N_DRAW: list[int] = [500, 1000]
+N_CHAINS: int = 16
 RHS_local_scale: list[float] = [0.1, 0.2]
 RHS_s2: list[float] = [0.01, 0.02, 0.04]
+
 
 ######### Workflow #########
 
@@ -25,18 +28,20 @@ RHS_s2: list[float] = [0.01, 0.02, 0.04]
 rule all:
     input:
         expand(
-            "AML_with_init_tune{N_TUNE}_draw{N_DRAW}_RHS{RHS_local_scale}_{RHS_s2}.nc",
+            "results/AML_with_init_tune{N_TUNE}_draw{N_DRAW}_RHS{RHS_local_scale}_{RHS_s2}_chain{chain_id}.nc",
             N_TUNE=N_TUNE,
             N_DRAW=N_DRAW,
             RHS_local_scale=RHS_local_scale,
             RHS_s2=RHS_s2,
+            chain_id=range(N_CHAINS),
         ),
         expand(
-            "AML_without_init_tune{N_TUNE}_draw{N_DRAW}_RHS{RHS_local_scale}_{RHS_s2}.nc",
+            "results/AML_without_init_tune{N_TUNE}_draw{N_DRAW}_RHS{RHS_local_scale}_{RHS_s2}_chain{chain_id}.nc",
             N_TUNE=N_TUNE,
             N_DRAW=N_DRAW,
             RHS_local_scale=RHS_local_scale,
             RHS_s2=RHS_s2,
+            chain_id=range(N_CHAINS),
         ),
 
 
@@ -44,8 +49,8 @@ rule run_fitree_with_init:
     input:
         "/cluster/home/luox/FiTree/analysis/sampling/AML_cohort_Morita_2020.json",
     output:
-        "AML_with_init_tune{N_TUNE}_draw{N_DRAW}_RHS{RHS_local_scale}_{RHS_s2}.nc",
-    threads: 48
+        "results/AML_with_init_tune{N_TUNE}_draw{N_DRAW}_RHS{RHS_local_scale}_{RHS_s2}_chain{chain_id}.nc",
+    threads: 4
     resources:
         runtime=10000,
         tasks=1,
@@ -53,8 +58,13 @@ rule run_fitree_with_init:
     run:
         N_draw = int(wildcards.N_DRAW)
         N_tune = int(wildcards.N_TUNE)
+        chain_id = int(wildcards.chain_id)
         RHS_local_scale = float(wildcards.RHS_local_scale)
         RHS_s2 = float(wildcards.RHS_s2)
+
+        pytensor.config.compiledir = (
+            f"/tmp/fitree_with_init_{N_draw}_{N_tune}_{RHS_local_scale}_{RHS_s2}"
+        )
 
         cohort = fitree.load_cohort_from_json(input[0])
 
@@ -99,22 +109,20 @@ rule run_fitree_with_init:
                 draws=N_draw,
                 tune=N_tune,
                 initvals=init_vals,
-                chains=24,
-                cores=24,
-                blas_cores=None,
+                chains=1,
                 return_inferencedata=True,
                 discard_tuned_samples=False,
             )
 
-            idata.to_netcdf(output)
+            idata.to_netcdf(output[0])
 
 
 rule run_fitree_without_init:
     input:
         "/cluster/home/luox/FiTree/analysis/sampling/AML_cohort_Morita_2020.json",
     output:
-        "AML_without_init_tune{N_TUNE}_draw{N_DRAW}_RHS{RHS_local_scale}_{RHS_s2}.nc",
-    threads: 48
+        "results/AML_without_init_tune{N_TUNE}_draw{N_DRAW}_RHS{RHS_local_scale}_{RHS_s2}_chain{chain_id}.nc",
+    threads: 4
     resources:
         runtime=10000,
         tasks=1,
@@ -122,8 +130,13 @@ rule run_fitree_without_init:
     run:
         N_draw = int(wildcards.N_DRAW)
         N_tune = int(wildcards.N_TUNE)
+        chain_id = int(wildcards.chain_id)
         RHS_local_scale = float(wildcards.RHS_local_scale)
         RHS_s2 = float(wildcards.RHS_s2)
+
+        pytensor.config.compiledir = (
+            f"/tmp/fitree_without_init_{N_draw}_{N_tune}_{RHS_local_scale}_{RHS_s2}"
+        )
 
         cohort = fitree.load_cohort_from_json(input[0])
 
@@ -155,11 +168,9 @@ rule run_fitree_without_init:
             idata = pm.sample(
                 draws=N_draw,
                 tune=N_tune,
-                chains=24,
-                cores=24,
-                blas_cores=None,
+                chains=1,
                 return_inferencedata=True,
                 discard_tuned_samples=False,
             )
 
-            idata.to_netcdf(output)
+            idata.to_netcdf(output[0])

@@ -10,6 +10,7 @@ import arviz as az
 import gzip
 import pandas as pd
 from glob import glob
+import pytensor
 
 
 from scripts.benchmarking_helpers import (
@@ -27,7 +28,7 @@ from fitree import VectorizedTrees
 ######### Simulation setup #########
 
 # cluster setup
-N_MUTATIONS: list[int] = [5, 10, 15]
+N_MUTATIONS: list[int] = [5, 15]
 N_TREES: list[int] = [500]
 N_SIMULATIONS: int = 100
 
@@ -110,16 +111,16 @@ rule all:
             N_trees=N_TREES,
             i=range(N_SIMULATIONS),
         ),
-        # expand(
-        #     "results/muts{n_mutations}_trees{N_trees}/evaluations_observed.txt",
-        #     n_mutations=N_MUTATIONS,
-        #     N_trees=N_TREES,
-        # ),
-        # expand(
-        #     "results/muts{n_mutations}_trees{N_trees}/evaluations_recoverable.txt",
-        #     n_mutations=N_MUTATIONS,
-        #     N_trees=N_TREES,
-        # ),
+        expand(
+            "results/muts{n_mutations}_trees{N_trees}/evaluations_observed.txt",
+            n_mutations=N_MUTATIONS,
+            N_trees=N_TREES,
+        ),
+        expand(
+            "results/muts{n_mutations}_trees{N_trees}/evaluations_recoverable.txt",
+            n_mutations=N_MUTATIONS,
+            N_trees=N_TREES,
+        ),
 
 
 rule generate_data:
@@ -137,14 +138,20 @@ rule generate_data:
         N_trees = int(wildcards.N_trees)
         n_mutations = int(wildcards.n_mutations)
         i = int(wildcards.i)
-        rng = np.random.default_rng(2024 * i)
+        rng = np.random.default_rng(2024 * i + i)
 
-        F_mat = fitree.generate_fmat(
-            rng=rng,
-            n_mutations=n_mutations,
-            mean=0.1,
-            sigma=0.03,
-        )
+        max_fitness = -np.inf
+
+        # ensure the diagonal of F_mat has at least one value > 0.1
+        # such that the runtime of the simulation is not too long
+        while max_fitness < 0.1:
+            F_mat = fitree.generate_fmat(
+                rng=rng,
+                n_mutations=n_mutations,
+                mean=0.1,
+                sigma=0.03,
+            )
+            max_fitness = np.max(np.diag(F_mat))
         np.savez(output[0], F_mat=F_mat)
 
         mu_vec = np.ones(n_mutations) * 3e-6
@@ -199,7 +206,6 @@ rule prepare_fitclone_input:
         runtime=60,
         tasks=1,
         nodes=1,
-        mem_mb_per_cpu=200,
     params:
         fitclone_data_dir=os.path.abspath(
             "data/muts5_trees{N_trees}/sim{i}/fitclone_input"
@@ -287,13 +293,17 @@ rule run_fitclone:
         tasks=1,
         nodes=1,
         mem_mb_per_cpu=800,
+    params:
+        fitclone_input_dir=os.path.abspath(
+            "data/muts5_trees{N_trees}/sim{i}/fitclone_input"
+        ),
     shell:
         """
-        cd {input} && \
+        cd {params.fitclone_input_dir} && \
         chmod a+x run_fitclone.py && \
         export NUMEXPR_MAX_THREADS=100 && \
         export OPENBLAS_NUM_THREADS=1 && \
-        ./run_fitclone.py --start 0 --end 499 --workers 100 && \
+        ./run_fitclone.py --start 0 --end 499 --workers 100 ; \
         touch {output}
         """
 
@@ -397,7 +407,7 @@ rule run_fitree:
         "results/muts{n_mutations}_trees{N_trees}/sim{i}/F_mat_init.npz",
     threads: 12
     resources:
-        runtime=240,
+        runtime=480,
         tasks=1,
         nodes=1,
     run:
@@ -425,11 +435,9 @@ rule run_fitree:
             cohort,
             fmat_prior_type="regularized_horseshoe",
             tau0=tau0,
-            local_scale=0.2,
-            s2=0.04,
+            local_scale=0.1,
+            s2=0.02,
         )
-
-        model = fitree.prior_fitree(cohort)
 
         with model:
             pm.Potential(
@@ -438,7 +446,15 @@ rule run_fitree:
                     model.fitness_matrix, model.C_sampling, model.nr_neg_samples
                 ),
             )
-            trace = pm.sample(draws=1000, tune=1000, chains=12)
+            trace = pm.sample(
+                draws=1000,
+                tune=1000,
+                chains=12,
+                cores=12,
+                mp_ctx="spawn",
+                blas_cores=None,
+                return_inferencedata=True,
+            )
 
         trace.to_netcdf(output[0])
 

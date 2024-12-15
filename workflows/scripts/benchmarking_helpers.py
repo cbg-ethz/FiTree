@@ -276,6 +276,12 @@ def process_tree(tree_id):
     CondExp().run_with_config_file(param_file)
     print(f"Finished processing tree ID: {{tree_id}}")
 
+def process_tree_safe(tree_id):
+    try:
+        process_tree(tree_id)  # Call your original processing function
+    except Exception as e:
+        print(f"Error processing tree ID {{tree_id}}: {{e}}")
+
 def main():
     parser = argparse.ArgumentParser(description="Run CondExp with specified tree IDs.")
     parser.add_argument('--start', type=int, required=True, help="Start of tree ID range (inclusive).")
@@ -288,7 +294,7 @@ def main():
 
     # Use multiprocessing to process the tree IDs in parallel
     with Pool(args.workers) as pool:
-        pool.map(process_tree, tree_ids)
+        pool.map(process_tree_safe, tree_ids)
 
 if __name__ == "__main__":
     main()
