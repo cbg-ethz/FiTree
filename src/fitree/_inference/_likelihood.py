@@ -968,11 +968,17 @@ def estimate_cell_numbers(trees: VectorizedTrees):
 
         def expected_no_parent():
             p = _pt(alpha_i, beta, lam_i, t)
-            return C_0 * rho_i * (1 - p) / p
+            exp_num = C_0 * rho_i * (1 - p) / p
+            exp_num = jnp.where(
+                lam_i > 0.0,
+                0.0,
+                exp_num,
+            )
+            return exp_num
 
         def expected_w_parent():
             lam_diff = lam_i - delta_pa_i
-            return (
+            exp_num = (
                 nu_i
                 * cell_number[:, pa_i]
                 * jax.lax.switch(
@@ -988,12 +994,19 @@ def estimate_cell_numbers(trees: VectorizedTrees):
                     ],
                 )
             )
+            exp_num = jnp.where(
+                lam_i > jnp.max(jnp.array([delta_pa_i, 0.0])),
+                0.0,
+                exp_num,
+            )
+            return exp_num
 
-        cell_number_i += (1.0 - observed) * jax.lax.cond(
+        unobserved_number_i = jax.lax.cond(
             pa_i == -1,
             expected_no_parent,
             expected_w_parent,
         )
+        cell_number_i += (1.0 - observed) * unobserved_number_i
         cell_number = cell_number.at[:, i].set(jnp.round(cell_number_i))
 
         return cell_number, None
