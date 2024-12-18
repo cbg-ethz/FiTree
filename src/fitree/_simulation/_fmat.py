@@ -21,22 +21,24 @@ def construct_matrix(n: int, diag: np.ndarray, offdiag: np.ndarray) -> np.ndarra
 def generate_fmat(
     rng,
     n_mutations: int,
-    mean: float = 0.05,
-    sigma: float = 0.1,
-    p_diag: float = 0.7,
-    p_offdiag: float = 0.3,
+    mean_diag: float = 0.1,
+    sigma_diag: float = 0.05,
+    mean_offdiag: float = 0.0,
+    sigma_offdiag: float = 1.0,
+    p_diag: float = 0.5,
+    p_offdiag: float = 0.5,
     positive_ratio: float = 0.5,
 ) -> np.ndarray:
     # Sample the entries of the fitness matrix
     # from spike-and-slab distributions
 
     # Determine the parameters of the log-normal distribution
-    lnorm_var = np.log1p(sigma**2 / mean**2)
-    lnorm_mean = np.log(mean) - 0.5 * lnorm_var
-    lnorm_std = np.sqrt(lnorm_var)
+    lnorm_var_diag = np.log1p(sigma_diag**2 / mean_diag**2)
+    lnorm_mean_diag = np.log(mean_diag) - 0.5 * lnorm_var_diag
+    lnorm_std_diag = np.sqrt(lnorm_var_diag)
 
     # Sample the diagonal elements
-    diag = rng.lognormal(mean=lnorm_mean, sigma=lnorm_std, size=n_mutations)
+    diag = rng.lognormal(mean=lnorm_mean_diag, sigma=lnorm_std_diag, size=n_mutations)
     nonzero_mask = rng.uniform(size=diag.shape) < p_diag
     diag = np.where(nonzero_mask, diag, 0.0)
 
@@ -52,20 +54,11 @@ def generate_fmat(
     diag = np.round(diag, 2)
 
     # Sample the off-diagonal elements
-    offdiag = rng.lognormal(
-        mean=lnorm_mean, sigma=lnorm_std, size=n_mutations * (n_mutations - 1) // 2
+    offdiag = rng.normal(
+        loc=mean_offdiag, scale=sigma_offdiag, size=n_mutations * (n_mutations - 1) // 2
     )
     nonzero_mask = rng.uniform(size=offdiag.shape) < p_offdiag
     offdiag = np.where(nonzero_mask, offdiag, 0.0)
-
-    nonzero_idx = np.where(nonzero_mask)[0]
-    nr_nonzero = nonzero_idx.size
-    nonzero_idx = np.where(nonzero_mask)[0]
-
-    # sample half of the off-diagonal elements as negative
-    neg_idx = rng.choice(nonzero_idx, size=int(nr_nonzero * 0.5), replace=False)
-    offdiag[neg_idx] = -offdiag[neg_idx]
-
     offdiag = np.round(offdiag, 2)
 
     return construct_matrix(n=n_mutations, diag=diag, offdiag=offdiag)
