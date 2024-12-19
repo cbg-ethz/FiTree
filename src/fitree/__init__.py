@@ -25,6 +25,7 @@ from ._inference import (
     prior_fitree,
     recoverable_entries,
     greedy_init_fmat,
+    init_rhs_prior,
 )
 
 __all__ = [
@@ -51,4 +52,5 @@ __all__ = [
     "prior_fitree",
     "recoverable_entries",
     "greedy_init_fmat",
+    "init_rhs_prior",
 ]
