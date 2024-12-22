@@ -11,7 +11,6 @@ import gzip
 import pandas as pd
 from glob import glob
 import pytensor
-from snakemake import workflow
 
 
 from scripts.benchmarking_helpers import (
@@ -34,6 +33,9 @@ N_TREES: list[int] = [200, 500]
 N_SIMULATIONS: int = 100
 fitclone_exe_dir: str = "/cluster/home/luox/fitclone/fitclone"
 scifil_exe_dir: str = "/cluster/home/luox/SCIFIL"
+script_dir: str = "/cluster/home/luox/FiTree/workflows/scripts"
+working_dir: str = os.getcwd()
+
 
 # # local setup
 # N_MUTATIONS: list[int] = [5]
@@ -82,7 +84,7 @@ rule all:
         ),
         expand(
             "results/muts{n_mutations}_trees{N_trees}/sim{i}/SCIFIL_result.txt",
-            n_mutations=N_MUTATIONS,
+            n_mutations=[5, 10],
             N_trees=N_TREES,
             i=range(N_SIMULATIONS),
         ),
@@ -108,12 +110,12 @@ rule all:
             N_trees=N_TREES,
             i=range(N_SIMULATIONS),
         ),
-        expand(
-            "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior.nc",
-            n_mutations=N_MUTATIONS,
-            N_trees=N_TREES,
-            i=range(N_SIMULATIONS),
-        ),
+        # expand(
+        #     "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior.nc",
+        #     n_mutations=N_MUTATIONS,
+        #     N_trees=N_TREES,
+        #     i=range(N_SIMULATIONS),
+        # ),
         # expand(
         #     "results/muts{n_mutations}_trees{N_trees}/evaluations_observed.txt",
         #     n_mutations=N_MUTATIONS,
@@ -133,7 +135,7 @@ rule generate_data:
         "data/muts{n_mutations}_trees500/sim{i}/vectorized_trees.npz",
     threads: 100
     resources:
-        runtime=240,
+        runtime=480,
         tasks=1,
         nodes=1,
         mem_mb_per_cpu=500,
@@ -343,10 +345,12 @@ rule run_fitclone:
         runtime=240,
         tasks=1,
         nodes=1,
-        mem_mb_per_cpu=800,
     params:
         fitclone_input_dir=os.path.abspath(
             "data/muts5_trees{N_trees}/sim{i}/fitclone_input"
+        ),
+        fitclone_output_dir=os.path.abspath(
+            "results/muts5_trees{N_trees}/sim{i}/fitclone_results"
         ),
     shell:
         """
@@ -355,7 +359,7 @@ rule run_fitclone:
         export NUMEXPR_MAX_THREADS=100 && \
         export OPENBLAS_NUM_THREADS=1 && \
         ./run_fitclone.py --start 0 --end 499 --workers 100 ; \
-        touch {output}
+        touch {params.fitclone_output_dir}/.done
         """
 
 
@@ -369,7 +373,6 @@ rule process_fitclone_output:
         runtime=60,
         tasks=1,
         nodes=1,
-        mem_mb_per_cpu=100,
     run:
         # Paths
         base_dir = os.path.dirname(input[0])
@@ -462,18 +465,15 @@ rule run_fitree:
         tasks=1,
         nodes=1,
     params:
-        n_mutations=n_mutations,
-        N_trees=N_trees,
-        i=i,
         ncores=12,
-        workdir=workdir,
     shell:
         """
-        python scripts/run_fitree_benchmark.py \
-            --n_mutations {params.n_mutations} \
-            --N_trees {params.N_trees} \
-            --i {params.i} \
-            --workdir {params.workdir} \
+        cd {script_dir} && \
+        python run_fitree_benchmark.py \
+            --n_mutations {wildcards.n_mutations} \
+            --N_trees {wildcards.N_trees} \
+            -i {wildcards.i} \
+            --workdir {working_dir} \
             --ncores {params.ncores}
         """
 

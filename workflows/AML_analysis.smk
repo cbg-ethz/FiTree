@@ -7,170 +7,78 @@ import os
 import numpy as np
 import pytensor
 
+# Enable 64-bit precision for JAX
 jax.config.update("jax_enable_x64", True)
 
 
-# set export NUMEXPR_MAX_THREADS=128
-os.environ["NUMEXPR_MAX_THREADS"] = "128"
-
 ######### Setup #########
 
-N_TUNE: list[int] = [200, 500]
+# Parameters
+N_TUNE: list[int] = [500, 1000]
 N_DRAW: list[int] = [500, 1000]
-N_CHAINS: int = 16
-RHS_local_scale: list[float] = [0.1, 0.2]
-RHS_s2: list[float] = [0.01, 0.02, 0.04]
+N_CHAINS: int = 24
+RHS_LOCAL_SCALE: list[float] = [0.5, 0.75, 1.0]
+RHS_S2: list[float] = [0.25, 0.5, 1.0]
+SEED: int = 2025
+working_dir: str = os.getcwd()
+script_dir: str = "/cluster/home/luox/FiTree/workflows/scripts"
+base_temp_dir: str = "/scratch/{}/pytensor_temp".format(
+    os.environ.get("USER", "unknown_user")
+)
 
+# Ensure base directory for PyTensor temp files exists
+os.makedirs(base_temp_dir, exist_ok=True)
 
 ######### Workflow #########
+
+# Generate RHS pairs
+RHS_pairs = expand(
+    "{RHS_local_scale}_{RHS_s2}",
+    zip,
+    RHS_local_scale=RHS_LOCAL_SCALE,
+    RHS_s2=RHS_S2,
+)
 
 
 rule all:
     input:
         expand(
-            "results/AML_with_init_tune{N_TUNE}_draw{N_DRAW}_RHS{RHS_local_scale}_{RHS_s2}_chain{chain_id}.nc",
-            N_TUNE=N_TUNE,
-            N_DRAW=N_DRAW,
-            RHS_local_scale=RHS_local_scale,
-            RHS_s2=RHS_s2,
-            chain_id=range(N_CHAINS),
-        ),
-        expand(
-            "results/AML_without_init_tune{N_TUNE}_draw{N_DRAW}_RHS{RHS_local_scale}_{RHS_s2}_chain{chain_id}.nc",
-            N_TUNE=N_TUNE,
-            N_DRAW=N_DRAW,
-            RHS_local_scale=RHS_local_scale,
-            RHS_s2=RHS_s2,
-            chain_id=range(N_CHAINS),
+            "results/AML_no_mask_tune{n_tune}_draw{n_draw}_RHS{rhs}.nc",
+            n_tune=N_TUNE,
+            n_draw=N_DRAW,
+            rhs=RHS_pairs,
         ),
 
 
-rule run_fitree_with_init:
-    input:
-        "/cluster/home/luox/FiTree/analysis/sampling/AML_cohort_Morita_2020.json",
+rule run_fitree_no_mask:
     output:
-        "results/AML_with_init_tune{N_TUNE}_draw{N_DRAW}_RHS{RHS_local_scale}_{RHS_s2}_chain{chain_id}.nc",
-    threads: 4
+        "results/AML_no_mask_tune{n_tune}_draw{n_draw}_RHS{RHS_local_scale}_{RHS_s2}.nc",
+    threads: N_CHAINS
     resources:
         runtime=10000,
         tasks=1,
         nodes=1,
-    run:
-        N_draw = int(wildcards.N_DRAW)
-        N_tune = int(wildcards.N_TUNE)
-        chain_id = int(wildcards.chain_id)
-        RHS_local_scale = float(wildcards.RHS_local_scale)
-        RHS_s2 = float(wildcards.RHS_s2)
+    shell:
+        """
+        sleep 60
 
-        pytensor.config.compiledir = (
-            f"/tmp/fitree_with_init_{N_draw}_{N_tune}_{RHS_local_scale}_{RHS_s2}"
-        )
+        # Create a unique temporary directory for this job
+        PYTENSOR_TEMP_DIR={base_temp_dir}/{wildcards.n_tune}_{wildcards.n_draw}_{wildcards.RHS_local_scale}_{wildcards.RHS_s2}
+        mkdir -p $PYTENSOR_TEMP_DIR
+        export PYTENSOR_FLAGS=base_compiledir=$PYTENSOR_TEMP_DIR
 
-        cohort = fitree.load_cohort_from_json(input[0])
+        # Run the fitree script
+        cd {script_dir} && \
+        python run_fitree_AML.py \
+            --n_tune {wildcards.n_tune} \
+            --n_samples {wildcards.n_draw} \
+            --n_chains {threads} \
+            --local_scale {wildcards.RHS_local_scale} \
+            --s2 {wildcards.RHS_s2} \
+            --workdir {working_dir} \
+            --seed {SEED} \
+            --mask False
 
-        fitree_joint_likelihood = fitree.FiTreeJointLikelihood(
-            cohort, augment_max_level=2
-        )
-
-        D = 31 * 32 / 2
-        p0 = np.sqrt(5 * D * (2 * 0.95 - 1))
-        N = cohort.N_patients
-        tau0 = p0 / (D - p0) / np.sqrt(N)
-        model = fitree.prior_fitree(
-            cohort,
-            fmat_prior_type="regularized_horseshoe",
-            tau0=tau0,
-            local_scale=RHS_local_scale,
-            s2=RHS_s2,
-        )
-
-        AML_vec_trees, _ = fitree.wrap_trees(cohort, augment_max_level=2)
-
-        F_mat_init = fitree.greedy_init_fmat(AML_vec_trees)
-        C_sampling_init, _ = cohort.compute_mean_std_tumor_size()
-        nr_neg_samples_init = (
-            cohort.N_patients / cohort.lifetime_risk * (1 - cohort.lifetime_risk)
-        )
-
-        init_vals = {
-            "fitness_matrix": F_mat_init,
-            "C_sampling": C_sampling_init,
-            "nr_neg_samples": nr_neg_samples_init,
-        }
-
-        with model:
-            pm.Potential(
-                "joint_likelihood",
-                fitree_joint_likelihood(
-                    model.fitness_matrix, model.C_sampling, model.nr_neg_samples
-                ),  # pyright: ignore
-            )
-            idata = pm.sample(
-                draws=N_draw,
-                tune=N_tune,
-                initvals=init_vals,
-                chains=1,
-                return_inferencedata=True,
-                discard_tuned_samples=False,
-            )
-
-            idata.to_netcdf(output[0])
-
-
-rule run_fitree_without_init:
-    input:
-        "/cluster/home/luox/FiTree/analysis/sampling/AML_cohort_Morita_2020.json",
-    output:
-        "results/AML_without_init_tune{N_TUNE}_draw{N_DRAW}_RHS{RHS_local_scale}_{RHS_s2}_chain{chain_id}.nc",
-    threads: 4
-    resources:
-        runtime=10000,
-        tasks=1,
-        nodes=1,
-    run:
-        N_draw = int(wildcards.N_DRAW)
-        N_tune = int(wildcards.N_TUNE)
-        chain_id = int(wildcards.chain_id)
-        RHS_local_scale = float(wildcards.RHS_local_scale)
-        RHS_s2 = float(wildcards.RHS_s2)
-
-        pytensor.config.compiledir = (
-            f"/tmp/fitree_without_init_{N_draw}_{N_tune}_{RHS_local_scale}_{RHS_s2}"
-        )
-
-        cohort = fitree.load_cohort_from_json(input[0])
-
-        fitree_joint_likelihood = fitree.FiTreeJointLikelihood(
-            cohort, augment_max_level=2
-        )
-
-        D = 31 * 32 / 2
-        p0 = np.sqrt(5 * D * (2 * 0.95 - 1))
-        N = cohort.N_patients
-        tau0 = p0 / (D - p0) / np.sqrt(N)
-        model = fitree.prior_fitree(
-            cohort,
-            fmat_prior_type="regularized_horseshoe",
-            tau0=tau0,
-            local_scale=RHS_local_scale,
-            s2=RHS_s2,
-        )
-
-        AML_vec_trees, _ = fitree.wrap_trees(cohort, augment_max_level=2)
-
-        with model:
-            pm.Potential(
-                "joint_likelihood",
-                fitree_joint_likelihood(
-                    model.fitness_matrix, model.C_sampling, model.nr_neg_samples
-                ),  # pyright: ignore
-            )
-            idata = pm.sample(
-                draws=N_draw,
-                tune=N_tune,
-                chains=1,
-                return_inferencedata=True,
-                discard_tuned_samples=False,
-            )
-
-            idata.to_netcdf(output[0])
+        # Cleanup the temporary directory
+        rm -rf $PYTENSOR_TEMP_DIR
+        """
