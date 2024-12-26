@@ -3,34 +3,39 @@ import numpy as np
 import pytensor.tensor as pt
 from typing import Optional
 
-from fitree._trees import TumorTreeCohort
+from fitree import TumorTreeCohort, wrap_trees
 
 
-def construct_fmat(n, entries):
-    # Create a square matrix of size n filled with zeros
+def construct_fmat(n, entries, mut_idx):
     mat = pt.zeros((n, n))
 
-    # Set the upper-triangular off-diagonal elements
-    upper_triangular_indices = pt.triu_indices(n, k=0)
-    mat = pt.set_subtensor(
-        mat[upper_triangular_indices], entries  # pyright: ignore
-    )  # Set the upper-triangular values
+    sub_n = len(mut_idx)
+    idx = 0
+
+    for i in range(sub_n):
+        for j in range(i, sub_n):
+            mat = pt.set_subtensor(
+                mat[mut_idx[i], mut_idx[j]], entries[idx]  # pyright: ignore
+            )
+            idx += 1
 
     return mat
 
 
 def prior_normal_fmat(
     n_mutations: int,
+    mut_idx: np.ndarray,
     mean: float = 0.0,
     sigma: float = 1.0,
 ) -> pm.Model:
-    nr_entries = n_mutations * (n_mutations + 1) // 2
+    nr_eff_mut = len(mut_idx)
+    nr_entries = nr_eff_mut * (nr_eff_mut + 1) // 2
 
     with pm.Model() as model:
         entries = pm.Normal("entries", mu=mean, sigma=sigma, shape=nr_entries)
         pm.Deterministic(
             "fitness_matrix",
-            construct_fmat(n_mutations, entries),
+            construct_fmat(n_mutations, entries, mut_idx),
         )
 
     return model
@@ -38,10 +43,12 @@ def prior_normal_fmat(
 
 def prior_horseshoe_fmat(
     n_mutations: int,
+    mut_idx: np.ndarray,
     tau_scale: float = 1.0,
     lambda_scale: float = 1.0,
 ) -> pm.Model:
-    nr_entries = n_mutations * (n_mutations + 1) // 2
+    nr_eff_mut = len(mut_idx)
+    nr_entries = nr_eff_mut * (nr_eff_mut + 1) // 2
 
     with pm.Model() as model:
         tau_var = pm.HalfCauchy("tau", tau_scale)
@@ -52,7 +59,7 @@ def prior_horseshoe_fmat(
         # Construct the theta matrix
         pm.Deterministic(
             "fitness_matrix",
-            construct_fmat(n_mutations, entries),
+            construct_fmat(n_mutations, entries, mut_idx),
         )
 
     return model
@@ -60,12 +67,14 @@ def prior_horseshoe_fmat(
 
 def prior_regularized_horseshoe_fmat(
     n_mutations: int,
+    mut_idx: np.ndarray,
     halft_dof: int = 5,
     local_scale: float = 0.2,
     s2: float = 0.04,
     tau0: Optional[float] = None,
 ) -> pm.Model:
-    nr_entries = n_mutations * (n_mutations + 1) // 2
+    nr_eff_mut = len(mut_idx)
+    nr_entries = nr_eff_mut * (nr_eff_mut + 1) // 2
 
     with pm.Model() as model:
         lambdas = pm.HalfStudentT(
@@ -87,7 +96,7 @@ def prior_regularized_horseshoe_fmat(
         # Construct the theta matrix
         pm.Deterministic(
             "fitness_matrix",
-            construct_fmat(n_mutations, betas),
+            construct_fmat(n_mutations, betas, mut_idx),
         )
 
     return model
@@ -95,12 +104,14 @@ def prior_regularized_horseshoe_fmat(
 
 def prior_spike_and_slab_fmat(
     n_mutations: int,
+    mut_idx: np.ndarray,
     sparsity_a: float = 3.0,
     sparsity_b: float = 1.0,
     spike_scale: float = 0.001,
     slab_scale: float = 10.0,
 ) -> pm.Model:
-    nr_entries = n_mutations * (n_mutations + 1) // 2
+    nr_eff_mut = len(mut_idx)
+    nr_entries = nr_eff_mut * (nr_eff_mut + 1) // 2
 
     with pm.Model() as model:
         gamma = pm.Beta("sparsity", sparsity_a, sparsity_b)
@@ -117,7 +128,7 @@ def prior_spike_and_slab_fmat(
 
         pm.Deterministic(
             "fitness_matrix",
-            construct_fmat(n_mutations, entries),
+            construct_fmat(n_mutations, entries, mut_idx),
         )
 
     return model
@@ -138,6 +149,8 @@ def prior_fitree(
     s2: float = 0.04,
     tau0: Optional[float] = None,
     fmat_prior_type: str = "normal",
+    min_occurrences: int = 0,
+    augment_max_level: int = 2,
 ) -> pm.Model:
     mean_tumor_size, std_tumor_size = trees.compute_mean_std_tumor_size()
     lnorm_mu = np.log(mean_tumor_size) - 0.5 * np.log(
@@ -151,21 +164,28 @@ def prior_fitree(
     pt.as_tensor(trees.lifetime_risk)
     pt.as_tensor(trees.N_patients)
 
+    vec_trees, _ = wrap_trees(trees, augment_max_level=augment_max_level)
+    geno_idx = np.where(vec_trees.observed.sum(axis=0) >= min_occurrences)[0]
+    mut_idx = np.where(vec_trees.genotypes[geno_idx, :].sum(axis=0) > 0)[0]
+
     if fmat_prior_type == "normal":
         model = prior_normal_fmat(
             n_mutations=trees.n_mutations,
+            mut_idx=mut_idx,
             mean=fmat_prior_mean,
             sigma=fmat_prior_sigma,
         )
     elif fmat_prior_type == "horseshoe":
         model = prior_horseshoe_fmat(
             n_mutations=trees.n_mutations,
+            mut_idx=mut_idx,
             tau_scale=tau_scale,
             lambda_scale=lambda_scale,
         )
     elif fmat_prior_type == "spike_and_slab":
         model = prior_spike_and_slab_fmat(
             n_mutations=trees.n_mutations,
+            mut_idx=mut_idx,
             sparsity_a=sparsity_a,
             sparsity_b=sparsity_b,
             spike_scale=spike_scale,
@@ -174,6 +194,7 @@ def prior_fitree(
     elif fmat_prior_type == "regularized_horseshoe":
         model = prior_regularized_horseshoe_fmat(
             n_mutations=trees.n_mutations,
+            mut_idx=mut_idx,
             halft_dof=halft_dof,
             local_scale=local_scale,
             s2=s2,
