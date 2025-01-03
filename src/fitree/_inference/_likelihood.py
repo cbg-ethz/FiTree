@@ -1128,10 +1128,24 @@ def jlogp(
         trees.seq_cell_number.sum(axis=1),
     )
 
-    # Compute the normalizing constant
-    normalizing_constant = compute_normalizing_constant(trees, eps=eps, tau=tau)
+    # # Compute the normalizing constant
+    # normalizing_constant = compute_normalizing_constant(trees, eps=eps, tau=tau)
 
-    # Compute the normalized log-likelihood
+    # # Compute the normalized log-likelihood
+    # jlogp_normalized = (
+    #     jlogp_unnormalized
+    #     - jnp.log(normalizing_constant + eps) * trees.N_patients
+    #     + _log_pt(trees, eps, tau) * nr_neg_samples
+    #     + log_p_seq
+    # )
+
+    # Normalizing constant on the full F_mat with positive diagonals
+    # plus positive off-diagonals is numerically unstable
+    # [TODO] Investigate why this is the case
+    # For now, we will use the diagonal of F_mat to compute the normalizing constant
+    # as the base fitness values influence the normalizing constant the most
+    trees = update_params(trees, jnp.diag(jnp.diag(F_mat)))
+    normalizing_constant = compute_normalizing_constant(trees, eps=eps, tau=tau)
     jlogp_normalized = (
         jlogp_unnormalized
         - jnp.log(normalizing_constant + eps) * trees.N_patients
