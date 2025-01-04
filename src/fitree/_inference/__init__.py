@@ -2,7 +2,12 @@
 """
 
 from ._likelihood import jlogp, update_params, compute_normalizing_constant
-from ._initialization import recoverable_entries, greedy_init_fmat, init_rhs_prior
+from ._initialization import (
+    recoverable_entries,
+    greedy_init_fmat,
+    init_prior_rhs,
+    init_prior_normal,
+)
 from ._backend import FiTreeJointLikelihood
 from ._prior import prior_fitree
 
@@ -15,5 +20,6 @@ __all__ = [
     "prior_fitree",
     "recoverable_entries",
     "greedy_init_fmat",
-    "init_rhs_prior",
+    "init_prior_rhs",
+    "init_prior_normal",
 ]

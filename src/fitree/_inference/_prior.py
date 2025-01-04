@@ -91,7 +91,7 @@ def prior_regularized_horseshoe_fmat(
 
         # Reparametrization trick for efficiency
         z = pm.Normal("z", 0.0, 1.0, shape=nr_entries)
-        betas = pm.Deterministic("betas", z * tau * lambdas_)
+        betas = z * tau * lambdas_
 
         # Construct the theta matrix
         pm.Deterministic(

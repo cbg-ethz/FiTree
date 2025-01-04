@@ -2,6 +2,8 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from scipy.optimize import minimize
+import pymc as pm
+import pytensor.tensor as pt
 
 from fitree import VectorizedTrees
 from fitree._inference._likelihood import jlogp_one_node, update_params
@@ -98,56 +100,93 @@ def greedy_init_fmat(
             F_mat[i, j] = optim_f_ij(i, j, trees, F_mat, indices, eps)
         if np.max(nr_observed[indices]) > nr_observed_threshold:
             F_mat[i, j] = optim_f_ij(i, j, trees, F_mat, indices, eps)
-        if i != j and F_mat[i, j] == 0:
-            F_mat[i, j] = -F_mat[i, i] - F_mat[j, j]
-
-    triu_indices = np.triu_indices(n_mutations, k=1)
-    triu_pairs = np.column_stack(triu_indices)
-    for pair in triu_pairs:
-        if not any((pair == x).all() for x in entries):
-            i = pair[0]
-            j = pair[1]
-            F_mat[i, j] = -F_mat[i, i] - F_mat[j, j]
 
     return F_mat
 
 
-def init_rhs_prior(
-    n_mutations: int,
+def init_prior_rhs(
     N_patients: int,
     trees: VectorizedTrees,
     eps: float = 1e-64,
-    nr_observed_threshold: int = 10,
+    min_occurrences: int = 0,
     halft_dof: int = 5,
+    local_scale: float = 0.2,
     s2: float = 0.04,
+    n_tune: int = 1000,
+    n_samples: int = 1000,
 ) -> dict:
     F_mat_init = greedy_init_fmat(
-        trees, eps=eps, nr_observed_threshold=nr_observed_threshold
+        trees, eps=eps, nr_observed_threshold=np.round(N_patients * 0.1)
     )
 
-    indices = np.triu_indices(n_mutations, k=0)
-    betas_init = F_mat_init[indices]
-    z_init = (betas_init - np.mean(betas_init)) / np.std(betas_init)
+    geno_idx = np.where(trees.observed.sum(axis=0) >= min_occurrences)[0]
+    mut_idx = np.where(trees.genotypes[geno_idx, :].sum(axis=0) > 0)[0]
+    nr_eff_mut = len(mut_idx)
+    nr_entries = nr_eff_mut * (nr_eff_mut + 1) // 2
 
-    p0 = np.round(np.sqrt(5 * (n_mutations**2 + n_mutations) / 2 * (2 * 0.95 - 1)))
-    D = n_mutations * (n_mutations + 1) / 2
+    submat_idx = np.ix_(mut_idx, mut_idx)
+    fitness_matrix = np.zeros_like(F_mat_init)
+    fitness_matrix[submat_idx] = F_mat_init[submat_idx]
+    sub_triu_indices = np.triu_indices(len(mut_idx), k=0)
+    betas_init = fitness_matrix[submat_idx][sub_triu_indices]
+
+    p0 = np.round(np.sqrt(5 * (nr_eff_mut**2 + nr_eff_mut) / 2 * (2 * 0.95 - 1)))
+    D = nr_eff_mut * (nr_eff_mut + 1) / 2
     tau0 = p0 / (D - p0) / np.sqrt(N_patients)
 
-    tau_init = tau0
-    c2_init = halft_dof * s2 / (halft_dof - 1)
-    lambdas_tilde_init = betas_init / (z_init * tau_init)
+    with pm.Model():
+        lambdas = pm.HalfStudentT(
+            "lambdas_raw", halft_dof, local_scale, shape=nr_entries
+        )
+        c2 = pm.InverseGamma("c2", halft_dof, halft_dof * s2)  # type: ignore
+        tau = pm.HalfStudentT("tau", halft_dof, tau0)
 
-    lambdas_init = lambdas_tilde_init / np.sqrt(
-        c2_init / (c2_init + tau_init**2 * lambdas_tilde_init**2)
-    )
+        lambdas_ = pm.Deterministic(
+            "lambdas_tilde",
+            lambdas * pt.sqrt(c2 / (c2 + tau**2 * lambdas**2)),  # type: ignore
+        )
+
+        z = pm.Normal("z", 0.0, 1.0, shape=nr_entries)
+        pm.Normal("betas", z * tau * lambdas_, 0.0001, observed=betas_init)
+        trace = pm.sample(draws=n_samples, tune=n_tune, chains=1)
+
+    lambdas_raw_init = trace.posterior["lambdas_raw"].values[0][-1, :]  # type: ignore
+    tau_init = trace.posterior["tau"].values[0][-1]  # type: ignore
+    z_init = trace.posterior["z"].values[0][-1, :]  # type: ignore
+    c2_init = trace.posterior["c2"].values[0][-1]  # type: ignore
 
     init_values = {
-        "fitness_matrix": F_mat_init,
-        "betas": betas_init,
         "z": z_init,
         "tau": tau_init,
         "c2": c2_init,
-        "lambdas_raw": lambdas_init,
+        "lambdas_raw": lambdas_raw_init,
+    }
+
+    return init_values
+
+
+def init_prior_normal(
+    N_patients: int,
+    trees: VectorizedTrees,
+    eps: float = 1e-64,
+    min_occurrences: int = 0,
+) -> dict:
+    F_mat_init = greedy_init_fmat(
+        trees, eps=eps, nr_observed_threshold=np.round(N_patients * 0.1)
+    )
+
+    geno_idx = np.where(trees.observed.sum(axis=0) >= min_occurrences)[0]
+    mut_idx = np.where(trees.genotypes[geno_idx, :].sum(axis=0) > 0)[0]
+
+    submat_idx = np.ix_(mut_idx, mut_idx)
+    fitness_matrix = np.zeros_like(F_mat_init)
+    fitness_matrix[submat_idx] = F_mat_init[submat_idx]
+    sub_triu_indices = np.triu_indices(len(mut_idx), k=0)
+    entries = fitness_matrix[submat_idx][sub_triu_indices]
+
+    init_values = {
+        "fitness_matrix": fitness_matrix,
+        "entries": entries,
     }
 
     return init_values
