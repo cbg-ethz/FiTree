@@ -161,8 +161,8 @@ def prior_fitree(
 
     lnorm_mu = pt.as_tensor(lnorm_mu)
     lnorm_tau = pt.as_tensor(lnorm_tau)
-    lifetime_risk = pt.as_tensor(trees.lifetime_risk)
-    nr_successes = pt.as_tensor(trees.N_patients)
+    pt.as_tensor(trees.lifetime_risk)
+    pt.as_tensor(trees.N_patients)
 
     vec_trees, _ = wrap_trees(trees, augment_max_level=augment_max_level)
     geno_idx = np.where(vec_trees.observed.sum(axis=0) >= min_occurrences)[0]
@@ -205,19 +205,20 @@ def prior_fitree(
 
     with model:
         # Log-normal prior on the tumor size scaling factor C_sampling
-        pm.Lognormal("C_sampling", mu=lnorm_mu, tau=lnorm_tau)
+        # pm.Lognormal("C_sampling", mu=lnorm_mu, tau=lnorm_tau)
+        pm.Deterministic("C_sampling", pt.as_tensor(mean_tumor_size))
 
         # Negative binomial prior on the number of negative samples
-        if trees.lifetime_risk == 1.0:
-            pm.Deterministic("nr_neg_samples", pt.as_tensor(0, dtype=pt.lscalar))
-        else:
-            pm.NegativeBinomial("nr_neg_samples", n=nr_successes, p=lifetime_risk)
+        # if trees.lifetime_risk == 1.0:
+        #     pm.Deterministic("nr_neg_samples", pt.as_tensor(0, dtype=pt.lscalar))
+        # else:
+        #     pm.NegativeBinomial("nr_neg_samples", n=nr_successes, p=lifetime_risk)
 
-        # nr_neg_samples = int(
-        #     trees.N_patients * (1 - trees.lifetime_risk) / trees.lifetime_risk
-        # )
-        # pm.Deterministic(
-        #     "nr_neg_samples", pt.as_tensor(nr_neg_samples, dtype=pt.lscalar)
-        # )
+        nr_neg_samples = int(
+            trees.N_patients * (1 - trees.lifetime_risk) / trees.lifetime_risk
+        )
+        pm.Deterministic(
+            "nr_neg_samples", pt.as_tensor(nr_neg_samples, dtype=pt.lscalar)
+        )
 
     return model
