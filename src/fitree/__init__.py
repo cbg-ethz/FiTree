@@ -27,6 +27,7 @@ from ._inference import (
     greedy_init_fmat,
     init_prior_rhs,
     init_prior_normal,
+    prior_fitree_mixed,
 )
 
 __all__ = [
@@ -55,4 +56,5 @@ __all__ = [
     "greedy_init_fmat",
     "init_prior_rhs",
     "init_prior_normal",
+    "prior_fitree_mixed",
 ]

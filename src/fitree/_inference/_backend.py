@@ -11,8 +11,8 @@ Op = pt.Op  # type: ignore
 class FiTreeJointLikelihood(Op):
     itypes = [
         pt.dmatrix,  # fitness matrix F_mat of shape (n_mutations, n_mutations)
-        pt.dscalar,  # C_s: scaling factor of the tumor size at sampling time
-        pt.lscalar,  # nr_neg_samples: number of negative samples
+        # pt.dscalar,  # C_s: scaling factor of the tumor size at sampling time
+        # pt.lscalar,  # nr_neg_samples: number of negative samples
     ]
     otypes = [pt.dscalar]  # the joing log-likelihood
 
@@ -28,18 +28,23 @@ class FiTreeJointLikelihood(Op):
         self.eps = eps
         self.tau = tau
 
+        self.C_s = trees.compute_mean_std_tumor_size()[0]
+        self.nr_neg_samples = (
+            trees.N_patients / trees.lifetime_risk * (1 - trees.lifetime_risk)
+        )
+
     def perform(self, node, inputs, outputs):  # type: ignore
         (
             F_mat,
-            C_s,
-            nr_neg_samples,
+            # C_s,
+            # nr_neg_samples,
         ) = inputs
 
         joint_likelihood = jlogp(
             trees=self.vectorized_trees,
             F_mat=F_mat,
-            C_s=C_s,
-            nr_neg_samples=nr_neg_samples,
+            C_s=self.C_s,
+            nr_neg_samples=self.nr_neg_samples,
             eps=self.eps,
             tau=self.tau,
         )

@@ -9,7 +9,7 @@ from ._initialization import (
     init_prior_normal,
 )
 from ._backend import FiTreeJointLikelihood
-from ._prior import prior_fitree
+from ._prior import prior_fitree, prior_fitree_mixed
 
 
 __all__ = [
@@ -22,4 +22,5 @@ __all__ = [
     "greedy_init_fmat",
     "init_prior_rhs",
     "init_prior_normal",
+    "prior_fitree_mixed",
 ]

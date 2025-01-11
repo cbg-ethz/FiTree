@@ -222,3 +222,59 @@ def prior_fitree(
         )
 
     return model
+
+
+def construct_fmat_mixed(n, diag, offdiag):
+    # Create a square matrix of size n filled with zeros
+    mat = pt.zeros((n, n))
+
+    # Set the diagonal elements
+    diag_indices = pt.arange(n), pt.arange(n)
+    mat = pt.set_subtensor(
+        mat[diag_indices], diag  # pyright: ignore
+    )  # Set the diagonal values
+
+    # Set the upper-triangular off-diagonal elements
+    upper_triangular_indices = pt.triu_indices(n, k=1)
+    mat = pt.set_subtensor(
+        mat[upper_triangular_indices], offdiag  # pyright: ignore
+    )  # Set the upper-triangular values
+
+    return mat
+
+
+def prior_fitree_mixed(
+    trees: TumorTreeCohort,
+    diag_mean: float = 0.0,
+    diag_sigma: float = 0.1,
+    halft_dof: int = 5,
+    local_scale: float = 0.2,
+    s2: float = 0.04,
+    tau0: Optional[float] = None,
+) -> pm.Model:
+    nr_mutations = trees.n_mutations
+
+    with pm.Model() as model:
+        # use normal prior for the diagonal
+        diag_entries = pm.Normal(
+            "diag_entries", mu=diag_mean, sigma=diag_sigma, shape=nr_mutations
+        )
+
+        # use regularized horseshoe prior for the off-diagonal
+        nr_offdiag_entries = nr_mutations * (nr_mutations - 1) // 2
+        lambdas = pm.HalfStudentT(
+            "lambdas_raw", halft_dof, local_scale, shape=nr_offdiag_entries
+        )
+        c2 = pm.InverseGamma("c2", halft_dof, halft_dof * s2)  # type: ignore
+        tau_scale = s2 if tau0 is None else tau0
+        tau = pm.HalfStudentT("tau", halft_dof, tau_scale)
+        lambdas_ = lambdas * pt.sqrt(c2 / (c2 + tau**2 * lambdas**2))
+        z = pm.Normal("z", 0.0, 1.0, shape=nr_offdiag_entries)
+        offdiag_entries = z * tau * lambdas_
+
+        pm.Deterministic(
+            "fitness_matrix",
+            construct_fmat_mixed(nr_mutations, diag_entries, offdiag_entries),
+        )
+
+    return model
