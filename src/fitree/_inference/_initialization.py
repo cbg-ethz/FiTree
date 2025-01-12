@@ -178,15 +178,18 @@ def init_prior_normal(
     geno_idx = np.where(trees.observed.sum(axis=0) >= min_occurrences)[0]
     mut_idx = np.where(trees.genotypes[geno_idx, :].sum(axis=0) > 0)[0]
 
+    diag_entries = np.diag(F_mat_init)
+
     submat_idx = np.ix_(mut_idx, mut_idx)
     fitness_matrix = np.zeros_like(F_mat_init)
     fitness_matrix[submat_idx] = F_mat_init[submat_idx]
-    sub_triu_indices = np.triu_indices(len(mut_idx), k=0)
-    entries = fitness_matrix[submat_idx][sub_triu_indices]
+    sub_triu_indices = np.triu_indices(len(mut_idx), k=1)
+    offdiag_entries = fitness_matrix[submat_idx][sub_triu_indices]
 
     init_values = {
         "fitness_matrix": fitness_matrix,
-        "entries": entries,
+        "diag_entries": diag_entries,
+        "offdiag_entries": offdiag_entries,
     }
 
     return init_values
