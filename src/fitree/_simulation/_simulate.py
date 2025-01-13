@@ -151,7 +151,7 @@ def _generate_valid_tree(
     rule: str | Any = "parallel",
     k_repeat: int | Any = 0,
     k_multiple: int | Any = 1,
-    return_time: bool | Any = False,
+    return_time: bool | Any = True,
 ) -> Tuple[Subclone, float] | Any:
     # Generate a tree and ensure that the sampling event occurs
     # before the maximum time t_max
@@ -197,7 +197,7 @@ def generate_trees(
     rule: str | Any = "parallel",
     k_repeat: int | Any = 0,
     k_multiple: int | Any = 1,
-    return_time: bool | Any = False,
+    return_time: bool | Any = True,
     parallel: bool | Any = False,
     n_jobs: int | Any = -1,
 ) -> TumorTreeCohort:
@@ -239,7 +239,7 @@ def generate_trees(
     t_max : float, optional
             The maximum time to generate the tree. Defaults to 100.
     return_time : bool, optional
-            Whether to return the sampling time. Defaults to False.
+            Whether to return the sampling time. Defaults to True.
 
     Returns
     -------
