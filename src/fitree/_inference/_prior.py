@@ -308,30 +308,39 @@ def prior_fitree_mixed(
     local_scale: float = 0.2,
     s2: float = 0.04,
     tau0: Optional[float] = None,
+    min_occurrences: int = 0,
+    augment_max_level: int = 2,
 ) -> pm.Model:
     nr_mutations = trees.n_mutations
+
+    vec_trees, _ = wrap_trees(trees, augment_max_level=augment_max_level)
+    geno_idx = np.where(vec_trees.observed.sum(axis=0) >= min_occurrences)[0]
+    mut_idx = np.where(vec_trees.genotypes[geno_idx, :].sum(axis=0) > 0)[0]
+
+    nr_eff_mut = len(mut_idx)
+    nr_diag = nr_mutations
+    nr_offdiag = nr_eff_mut * (nr_eff_mut - 1) // 2
 
     with pm.Model() as model:
         # use normal prior for the diagonal
         diag_entries = pm.Normal(
-            "diag_entries", mu=diag_mean, sigma=diag_sigma, shape=nr_mutations
+            "diag_entries", mu=diag_mean, sigma=diag_sigma, shape=nr_diag
         )
 
         # use regularized horseshoe prior for the off-diagonal
-        nr_offdiag_entries = nr_mutations * (nr_mutations - 1) // 2
         lambdas = pm.HalfStudentT(
-            "lambdas_raw", halft_dof, local_scale, shape=nr_offdiag_entries
+            "lambdas_raw", halft_dof, local_scale, shape=nr_offdiag
         )
         c2 = pm.InverseGamma("c2", halft_dof, halft_dof * s2)  # type: ignore
         tau_scale = s2 if tau0 is None else tau0
         tau = pm.HalfStudentT("tau", halft_dof, tau_scale)
         lambdas_ = lambdas * pt.sqrt(c2 / (c2 + tau**2 * lambdas**2))
-        z = pm.Normal("z", 0.0, 1.0, shape=nr_offdiag_entries)
+        z = pm.Normal("z", 0.0, 1.0, shape=nr_offdiag)
         offdiag_entries = z * tau * lambdas_
 
         pm.Deterministic(
             "fitness_matrix",
-            construct_fmat_mixed(nr_mutations, diag_entries, offdiag_entries),
+            construct_fmat_masked(nr_mutations, diag_entries, offdiag_entries, mut_idx),
         )
 
     return model
