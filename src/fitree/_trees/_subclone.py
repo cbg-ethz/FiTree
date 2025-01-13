@@ -151,9 +151,10 @@ class Subclone(SubcloneBase, NodeMixin):
             genotype_bool = np.zeros(F_mat.shape[0], dtype=bool)
             genotype_bool[gen_list] = True
             mask = genotype_bool[:, None] & genotype_bool[None, :]
-            upper_tri_mask = np.triu(np.ones_like(F_mat, dtype=bool))
+            upper_tri_mask = np.triu(np.ones_like(F_mat, dtype=bool), k=1)
             combined_mask = mask & upper_tri_mask
             coef = np.sum(np.where(combined_mask, F_mat, 0.0))
+            coef += np.max(np.where(genotype_bool, np.diag(F_mat), 0.0))
             log_alpha = np.log(common_beta) + coef
             alpha = np.exp(log_alpha)
 

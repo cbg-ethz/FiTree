@@ -736,8 +736,38 @@ def unnormalized_joint_logp(trees: VectorizedTrees, eps: float = 1e-64) -> jnp.n
     return jlogp
 
 
+# @jax.jit
+# def sum_fitness_effects(
+#     genotype: jnp.ndarray,
+#     F_mat: jnp.ndarray,
+# ) -> jnp.ndarray:
+#     """This function computes the sum of fitness effects of a genotype
+#     based on the fitness matrix F_mat.
+
+#     Suppose indices {2,3,5} in genotype vector are non-zero. Then the
+#     sum of fitness effects of this genotype is given by:
+#     F_mat[2,2] + F_mat[3,3] + F_mat[5,5] + F_mat[2,3] + F_mat[2,5] + F_mat[3,5]
+#     """
+#     # Ensure genotype is boolean
+#     genotype_bool = genotype.astype(bool)
+
+#     # Create a mask for the outer product of the genotype with itself
+#     mask = genotype_bool[:, None] & genotype_bool[None, :]  # Shape: (N, N)
+
+#     # Create an upper-triangular mask to avoid double-counting symmetric pairs
+#     upper_tri_mask = jnp.triu(jnp.ones_like(F_mat, dtype=bool))
+
+#     # Combine the genotype mask with the upper-triangular mask
+#     combined_mask = mask & upper_tri_mask
+
+#     # Apply the combined mask to F_mat and sum the selected elements
+#     total_sum = jnp.sum(jnp.where(combined_mask, F_mat, 0.0))
+
+#     return total_sum
+
+
 @jax.jit
-def sum_fitness_effects(
+def compute_fitness_effects(
     genotype: jnp.ndarray,
     F_mat: jnp.ndarray,
 ) -> jnp.ndarray:
@@ -746,22 +776,26 @@ def sum_fitness_effects(
 
     Suppose indices {2,3,5} in genotype vector are non-zero. Then the
     sum of fitness effects of this genotype is given by:
-    F_mat[2,2] + F_mat[3,3] + F_mat[5,5] + F_mat[2,3] + F_mat[2,5] + F_mat[3,5]
+    max(F_mat[2,2] + F_mat[3,3] + F_mat[5,5]) + F_mat[2,3] + F_mat[2,5] + F_mat[3,5]
     """
+
     # Ensure genotype is boolean
     genotype_bool = genotype.astype(bool)
 
     # Create a mask for the outer product of the genotype with itself
-    mask = genotype_bool[:, None] & genotype_bool[None, :]  # Shape: (N, N)
+    mask = genotype_bool[:, None] & genotype_bool[None, :]
 
     # Create an upper-triangular mask to avoid double-counting symmetric pairs
-    upper_tri_mask = jnp.triu(jnp.ones_like(F_mat, dtype=bool))
+    upper_tri_mask = jnp.triu(jnp.ones_like(F_mat, dtype=bool), k=1)
 
     # Combine the genotype mask with the upper-triangular mask
     combined_mask = mask & upper_tri_mask
 
     # Apply the combined mask to F_mat and sum the selected elements
     total_sum = jnp.sum(jnp.where(combined_mask, F_mat, 0.0))
+
+    # Add the maximum diagonal element to the total sum
+    total_sum += jnp.max(jnp.where(genotype_bool, jnp.diag(F_mat), 0.0))
 
     return total_sum
 
@@ -781,7 +815,7 @@ def update_params(
         delta_pa = jnp.where(pa_i == -1, 0.0, trees.delta[pa_i])
         r_pa = jnp.where(pa_i == -1, 1.0, trees.r[pa_i])
 
-        log_alpha = jnp.log(trees.beta) + sum_fitness_effects(
+        log_alpha = jnp.log(trees.beta) + compute_fitness_effects(
             trees.genotypes[i, :], F_mat
         )
         new_alpha_i = jnp.exp(log_alpha)

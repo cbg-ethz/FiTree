@@ -134,7 +134,7 @@ def plot_epistasis(
     epistasis = F_mat.copy()
     for i in range(n_mutations):
         for j in range(i, n_mutations):
-            epistasis[i, j] += F_mat[i, i] + F_mat[j, j]
+            epistasis[i, j] += np.max([F_mat[i, i], F_mat[j, j]])
 
     epistasis = np.round(np.transpose(epistasis), 2)
 

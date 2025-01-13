@@ -32,6 +32,8 @@ def test_growth_params():
 
     mu_vec = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6])
     F_mat = np.ones((6, 6))
+    F_mat[2, 2] = 1.1
+    F_mat[4, 4] = 0.9
     F_mat[0, 2] = 1.2
     F_mat[2, 4] = 0.5
     F_mat[4, 5] = 0.3
@@ -51,13 +53,13 @@ def test_growth_params():
 
     gpar = v1.get_growth_params(mu_vec, F_mat, common_beta, True)
     assert gpar["nu"] == 0.3
-    assert gpar["alpha"] == 1.2
+    assert gpar["alpha"] == 1.2 * 1.1
     assert gpar["beta"] == 1
-    assert gpar["lam"] == 1.2 - 1
+    assert gpar["lam"] == 1.2 * 1.1 - 1
     assert gpar["delta"] == gpar["lam"]
     assert gpar["r"] == 1
-    assert gpar["rho"] == 0.25
-    assert gpar["phi"] == 1.2 / gpar["lam"]
+    assert gpar["rho"] == 0.3 / (1.2 * 1.1)
+    assert gpar["phi"] == (1.2 * 1.1) / gpar["lam"]
     assert gpar["gamma"] == 0
 
     gpar = v2.get_growth_params(mu_vec, F_mat, common_beta, True)
@@ -73,14 +75,14 @@ def test_growth_params():
 
     gpar = v3.get_growth_params(mu_vec, F_mat, common_beta, True)
     assert gpar["nu"] == 0.5 * 0.6
-    assert np.isclose(gpar["alpha"], 1.2 * 0.5 * 0.3)
+    assert np.isclose(gpar["alpha"], 1.2 * 0.5 * 0.3 * 1.1)
     assert gpar["beta"] == common_beta
-    assert np.isclose(gpar["lam"], 1.2 * 0.5 * 0.3 - 1)
-    assert gpar["delta"] == 1.2 - 1
+    assert np.isclose(gpar["lam"], 1.2 * 0.5 * 0.3 * 1.1 - 1)
+    assert gpar["delta"] == 1.2 * 1.1 - 1
     assert gpar["r"] == 1
-    assert np.isclose(gpar["rho"], 5 / 3)
-    assert np.isclose(gpar["phi"], 1 / 0.82)
-    assert gpar["gamma"] == 1
+    assert np.isclose(gpar["rho"], (0.5 * 0.6) / (1.2 * 0.5 * 0.3 * 1.1))
+    assert np.isclose(gpar["phi"], -1.0 / (1.2 * 0.5 * 0.3 * 1.1 - 1))
+    assert gpar["gamma"] == 1.0
 
 
 def test_mrca():
