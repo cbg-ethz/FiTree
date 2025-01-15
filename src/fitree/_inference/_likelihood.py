@@ -1179,12 +1179,10 @@ def jlogp(
     # For now, we will use the diagonal of F_mat to compute the normalizing constant
     # as the base fitness values influence the normalizing constant the most
     trees = update_params(trees, jnp.diag(jnp.diag(F_mat)))
-    normalizing_constant = compute_normalizing_constant(trees, eps=eps, tau=tau)
+    # normalizing_constant = compute_normalizing_constant(trees, eps=eps, tau=tau)
+
     jlogp_normalized = (
-        jlogp_unnormalized
-        - jnp.log(normalizing_constant + eps) * trees.N_patients
-        + _log_pt(trees, eps, tau) * nr_neg_samples
-        + log_p_seq
+        jlogp_unnormalized + log_p_seq + _log_pt(trees, eps, tau) * nr_neg_samples
     )
 
     return jlogp_normalized
