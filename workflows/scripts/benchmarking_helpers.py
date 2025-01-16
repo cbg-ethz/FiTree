@@ -309,20 +309,3 @@ def weighted_spearman(x, y, w=None):
     if w is None:
         w = np.ones_like(x, dtype=bool)
     return spearmanr(x[w], y[w])[0]
-
-
-def get_available_simulations(n_mutations, N_trees):
-    sims = []
-    os.chdir("/Users/luox/Documents/Projects/FiTree/workflows")
-    for i in range(100):
-        required_files = [
-            f"results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior.nc",
-            f"results/muts{n_mutations}_trees{N_trees}/sim{i}/diffusion_subclone_fitness.txt",
-            f"results/muts{n_mutations}_trees{N_trees}/sim{i}/diffusion_mutation_fitness.txt",
-            f"results/muts{n_mutations}_trees{N_trees}/sim{i}/SCIFIL_result.txt",
-            f"data/muts{n_mutations}_trees{N_trees}/sim{i}/vectorized_trees.npz",
-            f"data/muts{n_mutations}_trees{N_trees}/sim{i}/fitness_matrix.npz",
-        ]
-        if all(os.path.exists(f) for f in required_files):
-            sims.append(i)
-    return sims
