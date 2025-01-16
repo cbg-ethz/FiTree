@@ -18,13 +18,12 @@ class FiTreeJointLikelihood(Op):
         self,
         trees: TumorTreeCohort,
         augment_max_level: int | None = 2,
-        pseudo_count: float = 0,
         eps: float = 1e-64,
         tau: float = 1e-2,
         C_s: float | None = None,
         nr_neg_samples: float | None = None,
     ):
-        self.vectorized_trees, _ = wrap_trees(trees, augment_max_level, pseudo_count)
+        self.vectorized_trees, _ = wrap_trees(trees, augment_max_level)
         self.eps = eps
         self.tau = tau
 
