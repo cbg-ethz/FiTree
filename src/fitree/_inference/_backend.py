@@ -1,7 +1,9 @@
 import pytensor.tensor as pt
 import numpy as np
 
-from fitree._inference._likelihood import jlogp
+from fitree._inference._likelihood import (
+    jlogp,
+)
 from fitree._trees._wrapper import wrap_trees
 from fitree._trees import TumorTreeCohort
 
@@ -18,12 +20,15 @@ class FiTreeJointLikelihood(Op):
         self,
         trees: TumorTreeCohort,
         augment_max_level: int | None = 2,
+        C_s: float | None = None,
+        conditioning: bool = True,
+        lifetime_risk_mean: float | None = None,
+        lifetime_risk_std: float | None = None,
         eps: float = 1e-64,
         tau: float = 1e-2,
-        C_s: float | None = None,
-        nr_neg_samples: float | None = None,
     ):
         self.vectorized_trees, _ = wrap_trees(trees, augment_max_level)
+        self.N_patients = trees.N_patients
         self.eps = eps
         self.tau = tau
 
@@ -32,24 +37,39 @@ class FiTreeJointLikelihood(Op):
         else:
             self.C_s = C_s
 
-        if nr_neg_samples is None:
-            self.nr_neg_samples = (
-                trees.N_patients / trees.lifetime_risk * (1 - trees.lifetime_risk)
-            )
-        else:
-            self.nr_neg_samples = nr_neg_samples
+        if not conditioning:
+            # error if lifetime_risk_mean or lifetime_risk_std is None
+            if lifetime_risk_mean is None or lifetime_risk_std is None:
+                raise ValueError(
+                    "lifetime_risk_mean and lifetime_risk_std must be provided"
+                )
+
+        self.conditioning = conditioning
+        self.lifetime_risk_mean = lifetime_risk_mean
+        self.lifetime_risk_std = lifetime_risk_std
 
     def perform(self, node, inputs, outputs):  # type: ignore
         (F_mat,) = inputs
 
-        joint_likelihood = jlogp(
+        joint_likelihood, lifetime_risk = jlogp(
             trees=self.vectorized_trees,
             F_mat=F_mat,
             C_s=self.C_s,
-            nr_neg_samples=self.nr_neg_samples,
             eps=self.eps,
             tau=self.tau,
         )
+
+        if self.conditioning:
+            joint_likelihood -= self.N_patients * np.log(lifetime_risk + self.eps)
+        else:
+            # compute the probability of the lifetime risk using normal log-likelihood
+            joint_likelihood += (
+                -0.5
+                * (lifetime_risk - self.lifetime_risk_mean) ** 2
+                / self.lifetime_risk_std**2  # pyright: ignore
+                - 0.5 * np.log(2 * np.pi)
+                - np.log(self.lifetime_risk_std)  # pyright: ignore
+            )
 
         if np.isnan(joint_likelihood):
             joint_likelihood = -np.inf
