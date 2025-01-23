@@ -888,7 +888,7 @@ def update_params(
 
 
 @jax.jit
-def compute_g_tilde_vec(trees: VectorizedTrees) -> jnp.ndarray:
+def compute_g_tilde_vec(trees: VectorizedTrees, t: float) -> jnp.ndarray:
     """This function computes the g_tilde vector for the tree
     at maximum time t_max. (See Theorem 3 in the supplement)
     """
@@ -903,7 +903,7 @@ def compute_g_tilde_vec(trees: VectorizedTrees) -> jnp.ndarray:
     # Compute the recursive g_tilde vector
     def scan_fun(g_tilde_vec, i):
         # Compute q_tilde for the node
-        q_tilde_i = _q_tilde(trees.t_max, trees.C_s, trees.r[i], trees.delta[i])
+        q_tilde_i = _q_tilde(t, trees.C_s, trees.r[i], trees.delta[i])
         g_tilde_i = g_tilde_vec[i] + q_tilde_i
         g_tilde_vec = g_tilde_vec.at[i].set(g_tilde_i)
 
@@ -925,13 +925,14 @@ def compute_g_tilde_vec(trees: VectorizedTrees) -> jnp.ndarray:
 
 
 @jax.jit
-def _log_pt(trees: VectorizedTrees, eps: float = 1e-64, tau: float = 1e-2) -> float:
+def _log_pt(
+    trees: VectorizedTrees, t: float, eps: float = 1e-64, tau: float = 1e-2
+) -> float:
     """This function computes the log probability P(T_s > t_max)
     defined in Theorem 3.
     """
 
-    g_tilde_vec = compute_g_tilde_vec(trees)
-    t = trees.t_max
+    g_tilde_vec = compute_g_tilde_vec(trees, t)
     C_0 = trees.C_0
 
     def scan_fun(log_pt, i):
@@ -970,7 +971,8 @@ def compute_normalizing_constant(
     P(T_s < t_max) = 1 - P(T_s > t_max)
     """
 
-    log_pt = _log_pt(trees, eps, tau)
+    t = trees.t_max
+    log_pt = _log_pt(trees, t, eps, tau)
 
     return -jnp.expm1(log_pt)
 
