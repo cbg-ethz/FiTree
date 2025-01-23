@@ -23,7 +23,7 @@ def plot_fmat(
 
     mask = np.triu(np.ones_like(F_mat, dtype=bool), k=1)
 
-    cmap = sns.diverging_palette(230, 20, as_cmap=True)
+    cmap = sns.diverging_palette(145, 300, s=60, as_cmap=True)
 
     sns.set_theme(style="white")
 
@@ -140,7 +140,19 @@ def plot_epistasis(
 
     mask = np.triu(np.ones_like(epistasis, dtype=bool), k=0)
 
-    cmap = sns.diverging_palette(230, 20, as_cmap=True)
+    upp_tri_indices = np.triu_indices(n_mutations, k=0)
+    all_effects = F_mat[upp_tri_indices]
+
+    # compute vmax, vmin, and center for the colorbar
+    vmax = float(all_effects.max())
+    vmin = float(all_effects.min())
+    vmin = min(vmin, 0)
+    center = float(np.mean([vmax, vmin]))
+
+    if vmin < 0:
+        cmap = sns.diverging_palette(230, 20, as_cmap=True)
+    else:
+        cmap = sns.color_palette("flare", as_cmap=True)
 
     fig, axes = plt.subplots(
         1,
@@ -158,7 +170,9 @@ def plot_epistasis(
         xticklabels=[""],
         yticklabels=mutation_labels,
         linewidths=0.5,
-        center=0,
+        vmax=vmax,
+        vmin=vmin,
+        center=center,
         ax=axes[0],
     )
     axes[0].set_title("Base Effects", fontsize=14)
@@ -171,9 +185,9 @@ def plot_epistasis(
         xticklabels=mutation_labels[:-1] + [""],
         yticklabels=[""] + mutation_labels[1:],
         linewidths=0.5,
-        cbar_kws={"shrink": 0.5},
-        vmax=0.3,
-        center=0,
+        vmax=vmax,
+        vmin=vmin,
+        center=center,
         ax=axes[1],
     )
     axes[1].set_title("Epistasis", fontsize=14)
