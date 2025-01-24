@@ -184,3 +184,4 @@ src/fitree/_mtbp
 src/fitree/_inference/_numpyro
 workflows/AML_results
 manuscript/
+analysis/
