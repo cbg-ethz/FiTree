@@ -91,11 +91,50 @@ rule all:
             i=range(N_SIMULATIONS),
         ),
         expand(
+            "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior_masked_normal/chain{chain}.nc",
+            n_mutations=N_MUTATIONS,
+            N_trees=N_TREES,
+            i=range(N_SIMULATIONS),
+            chain=range(N_CHAINS),
+        ),
+        expand(
+            "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior_normal/chain{chain}.nc",
+            n_mutations=[10],
+            N_trees=[200],
+            i=range(N_SIMULATIONS),
+            chain=range(N_CHAINS),
+        ),
+        expand(
+            "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior_conditional_normal/chain{chain}.nc",
+            n_mutations=[10],
+            N_trees=[200],
+            i=range(N_SIMULATIONS),
+            chain=range(N_CHAINS),
+        ),
+        expand(
             "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior/chain{chain}_masked_mixed.nc",
             n_mutations=N_MUTATIONS,
             N_trees=N_TREES,
             i=range(N_SIMULATIONS),
             chain=range(N_CHAINS),
+        ),
+        expand(
+            "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior_masked_normal.nc",
+            n_mutations=N_MUTATIONS,
+            N_trees=N_TREES,
+            i=range(N_SIMULATIONS),
+        ),
+        expand(
+            "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior_normal.nc",
+            n_mutations=[10],
+            N_trees=[200],
+            i=range(N_SIMULATIONS),
+        ),
+        expand(
+            "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior_conditional_normal.nc",
+            n_mutations=[10],
+            N_trees=[200],
+            i=range(N_SIMULATIONS),
         ),
         expand(
             "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior_masked_mixed.nc",
@@ -459,12 +498,247 @@ rule process_fitclone_output:
         print(f"Mapped medians saved to {output_file}.")
 
         # remove the directory
-        import shutil
+        # import shutil
+        # shutil.rmtree(base_dir)
 
-        shutil.rmtree(base_dir)
 
 
-rule run_fitree:
+rule run_fitree_masked_normal:
+    input:
+        "data/muts{n_mutations}_trees{N_trees}/sim{i}/cohort.json",
+        "data/muts{n_mutations}_trees{N_trees}/sim{i}/fitness_matrix.npz",
+        "data/muts{n_mutations}_trees{N_trees}/sim{i}/vectorized_trees.npz",
+    output:
+        "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior_masked_normal/chain{chain}.nc",
+    threads: 1
+    resources:
+        runtime=2880,
+        tasks=1,
+        nodes=1,
+        mem_mb_per_cpu=2048,
+    run:
+        import pytensor
+
+        pytensor.config.compiledir = (
+            "/cluster/work/bewi/members/xgluo/pytensor_tmp"
+            + f"/muts{wildcards.n_mutations}_trees{wildcards.N_trees}_sim{wildcards.i}_chain{wildcards.chain}_masked_normal"
+        )
+
+        import pymc as pm
+        import numpy as np
+        import fitree
+        import arviz as az
+
+
+        n_mutations = int(wildcards.n_mutations)
+        i = int(wildcards.i)
+        chain = int(wildcards.chain)
+        seed = n_mutations * 10**6 + i * 10**3 + chain
+
+        cohort = fitree.load_cohort_from_json(input[0])
+        F_mat = np.load(input[1])["F_mat"]
+        vec_trees = fitree.load_vectorized_trees_npz(input[2])
+
+        vec_trees = fitree.update_params(vec_trees, np.diag(np.diag(F_mat)))
+        cohort.lifetime_risk = float(fitree.compute_normalizing_constant(vec_trees))
+
+        fitree_joint_likelihood = fitree.FiTreeJointLikelihood(
+            cohort,
+            augment_max_level=2,
+            conditioning=False,
+            lifetime_risk_mean=cohort.lifetime_risk,
+            lifetime_risk_std=0.001,
+        )
+
+        model = fitree.prior_fitree(
+            cohort,
+            diag_sigma=0.1,
+            offdiag_sigma=0.1,
+            min_occurrences=5,
+        )
+
+        with model:
+            pm.Potential(
+                "joint_likelihood",
+                fitree_joint_likelihood(
+                    model.fitness_matrix,  # pyright: ignore
+                ),  # pyright: ignore
+            )
+            trace = pm.sample(
+                draws=1000,
+                tune=1000,
+                chains=1,
+                return_inferencedata=True,
+                random_seed=seed,
+                # initvals=init_values,
+            )
+
+        trace.to_netcdf(output[0])
+
+        # remove compiledir
+        if os.path.exists(pytensor.config.compiledir):
+            import shutil
+
+            shutil.rmtree(pytensor.config.compiledir)
+
+
+rule run_fitree_normal:
+    input:
+        "data/muts{n_mutations}_trees{N_trees}/sim{i}/cohort.json",
+        "data/muts{n_mutations}_trees{N_trees}/sim{i}/fitness_matrix.npz",
+        "data/muts{n_mutations}_trees{N_trees}/sim{i}/vectorized_trees.npz",
+    output:
+        "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior_normal/chain{chain}.nc",
+    threads: 1
+    resources:
+        runtime=2880,
+        tasks=1,
+        nodes=1,
+        mem_mb_per_cpu=2048,
+    run:
+        import pytensor
+
+        pytensor.config.compiledir = (
+            "/cluster/work/bewi/members/xgluo/pytensor_tmp"
+            + f"/muts{wildcards.n_mutations}_trees{wildcards.N_trees}_sim{wildcards.i}_chain{wildcards.chain}_normal"
+        )
+
+        import pymc as pm
+        import numpy as np
+        import fitree
+        import arviz as az
+
+
+        n_mutations = int(wildcards.n_mutations)
+        i = int(wildcards.i)
+        chain = int(wildcards.chain)
+        seed = n_mutations * 10**6 + i * 10**3 + chain
+
+        cohort = fitree.load_cohort_from_json(input[0])
+        F_mat = np.load(input[1])["F_mat"]
+        vec_trees = fitree.load_vectorized_trees_npz(input[2])
+
+        vec_trees = fitree.update_params(vec_trees, np.diag(np.diag(F_mat)))
+        cohort.lifetime_risk = float(fitree.compute_normalizing_constant(vec_trees))
+
+        fitree_joint_likelihood = fitree.FiTreeJointLikelihood(
+            cohort,
+            augment_max_level=2,
+            conditioning=False,
+            lifetime_risk_mean=cohort.lifetime_risk,
+            lifetime_risk_std=0.001,
+        )
+
+        model = fitree.prior_fitree(
+            cohort,
+            diag_sigma=0.1,
+            offdiag_sigma=0.1,
+            min_occurrences=0,
+        )
+
+        with model:
+            pm.Potential(
+                "joint_likelihood",
+                fitree_joint_likelihood(
+                    model.fitness_matrix,  # pyright: ignore
+                ),  # pyright: ignore
+            )
+            trace = pm.sample(
+                draws=1000,
+                tune=1000,
+                chains=1,
+                return_inferencedata=True,
+                random_seed=seed,
+                # initvals=init_values,
+            )
+
+        trace.to_netcdf(output[0])
+
+        # remove compiledir
+        if os.path.exists(pytensor.config.compiledir):
+            import shutil
+
+            shutil.rmtree(pytensor.config.compiledir)
+
+
+rule run_fitree_conditional_normal:
+    input:
+        "data/muts{n_mutations}_trees{N_trees}/sim{i}/cohort.json",
+        "data/muts{n_mutations}_trees{N_trees}/sim{i}/fitness_matrix.npz",
+        "data/muts{n_mutations}_trees{N_trees}/sim{i}/vectorized_trees.npz",
+    output:
+        "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior_conditional_normal/chain{chain}.nc",
+    threads: 1
+    resources:
+        runtime=2880,
+        tasks=1,
+        nodes=1,
+        mem_mb_per_cpu=2048,
+    run:
+        import pytensor
+
+        pytensor.config.compiledir = (
+            "/cluster/work/bewi/members/xgluo/pytensor_tmp"
+            + f"/muts{wildcards.n_mutations}_trees{wildcards.N_trees}_sim{wildcards.i}_chain{wildcards.chain}_conditional_normal"
+        )
+
+        import pymc as pm
+        import numpy as np
+        import fitree
+        import arviz as az
+
+
+        n_mutations = int(wildcards.n_mutations)
+        i = int(wildcards.i)
+        chain = int(wildcards.chain)
+        seed = n_mutations * 10**6 + i * 10**3 + chain
+
+        cohort = fitree.load_cohort_from_json(input[0])
+        F_mat = np.load(input[1])["F_mat"]
+        vec_trees = fitree.load_vectorized_trees_npz(input[2])
+
+        vec_trees = fitree.update_params(vec_trees, np.diag(np.diag(F_mat)))
+        cohort.lifetime_risk = float(fitree.compute_normalizing_constant(vec_trees))
+
+        fitree_joint_likelihood = fitree.FiTreeJointLikelihood(
+            cohort,
+            augment_max_level=2,
+            conditioning=True,
+        )
+
+        model = fitree.prior_fitree(
+            cohort,
+            diag_sigma=0.1,
+            offdiag_sigma=0.1,
+            min_occurrences=0,
+        )
+
+        with model:
+            pm.Potential(
+                "joint_likelihood",
+                fitree_joint_likelihood(
+                    model.fitness_matrix,  # pyright: ignore
+                ),  # pyright: ignore
+            )
+            trace = pm.sample(
+                draws=1000,
+                tune=1000,
+                chains=1,
+                return_inferencedata=True,
+                random_seed=seed,
+                # initvals=init_values,
+            )
+
+        trace.to_netcdf(output[0])
+
+        # remove compiledir
+        if os.path.exists(pytensor.config.compiledir):
+            import shutil
+
+            shutil.rmtree(pytensor.config.compiledir)
+
+
+rule run_fitree_masked_mixed:
     input:
         "data/muts{n_mutations}_trees{N_trees}/sim{i}/cohort.json",
         "data/muts{n_mutations}_trees{N_trees}/sim{i}/fitness_matrix.npz",
@@ -505,7 +779,7 @@ rule run_fitree:
 
         fitree_joint_likelihood = fitree.FiTreeJointLikelihood(
             cohort,
-            augment_max_level=2,
+            augment_max_level=1,
             conditioning=False,
             lifetime_risk_mean=cohort.lifetime_risk,
             lifetime_risk_std=0.001,
@@ -551,7 +825,7 @@ rule run_fitree:
             shutil.rmtree(pytensor.config.compiledir)
 
 
-rule combine_fitree_chains:
+rule combine_fitree_chains_maxked_mixed:
     input:
         lambda wildcards: expand(
             "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior/chain{chain}_masked_mixed.nc",
@@ -562,6 +836,84 @@ rule combine_fitree_chains:
         ),
     output:
         "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior_masked_mixed.nc",
+    threads: 1
+    resources:
+        runtime=60,
+        tasks=1,
+        nodes=1,
+    run:
+        import arviz as az
+
+        trace = az.concat(
+            [az.from_netcdf(f) for f in input],
+            dim="chain",
+        )
+        trace.to_netcdf(output[0])
+
+
+rule combine_fitree_chains_masked_normal:
+    input:
+        lambda wildcards: expand(
+            "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior_masked_normal/chain{chain}.nc",
+            n_mutations=wildcards.n_mutations,
+            N_trees=wildcards.N_trees,
+            i=wildcards.i,
+            chain=range(N_CHAINS),
+        ),
+    output:
+        "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior_masked_normal.nc",
+    threads: 1
+    resources:
+        runtime=60,
+        tasks=1,
+        nodes=1,
+    run:
+        import arviz as az
+
+        trace = az.concat(
+            [az.from_netcdf(f) for f in input],
+            dim="chain",
+        )
+        trace.to_netcdf(output[0])
+
+
+rule combine_fitree_chains_normal:
+    input:
+        lambda wildcards: expand(
+            "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior_normal/chain{chain}.nc",
+            n_mutations=wildcards.n_mutations,
+            N_trees=wildcards.N_trees,
+            i=wildcards.i,
+            chain=range(N_CHAINS),
+        ),
+    output:
+        "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior_normal.nc",
+    threads: 1
+    resources:
+        runtime=60,
+        tasks=1,
+        nodes=1,
+    run:
+        import arviz as az
+
+        trace = az.concat(
+            [az.from_netcdf(f) for f in input],
+            dim="chain",
+        )
+        trace.to_netcdf(output[0])
+
+
+rule combine_fitree_chains_conditional_normal:
+    input:
+        lambda wildcards: expand(
+            "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior_conditional_normal/chain{chain}.nc",
+            n_mutations=wildcards.n_mutations,
+            N_trees=wildcards.N_trees,
+            i=wildcards.i,
+            chain=range(N_CHAINS),
+        ),
+    output:
+        "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior_conditional_normal.nc",
     threads: 1
     resources:
         runtime=60,
@@ -650,7 +1002,7 @@ rule evaluate_sc:
                 # Evaluate FiTree
                 try:
                     trace = az.from_netcdf(
-                        f"results/muts{wildcards.n_mutations}_trees{wildcards.N_trees}/sim{i}/fitree_posterior_masked_mixed.nc"
+                        f"results/muts{wildcards.n_mutations}_trees{wildcards.N_trees}/sim{i}/fitree_posterior_masked_normal.nc"
                     )
 
                     # F_mat_posterior = trace.posterior["fitness_matrix"].values
@@ -869,7 +1221,7 @@ rule evaluate_fitness:
                 # Evaluate FiTree
                 try:
                     trace = az.from_netcdf(
-                        f"results/muts{wildcards.n_mutations}_trees{wildcards.N_trees}/sim{i}/fitree_posterior_masked_mixed.nc"
+                        f"results/muts{wildcards.n_mutations}_trees{wildcards.N_trees}/sim{i}/fitree_posterior_masked_normal.nc"
                     )
 
                     fitree_posterior = trace.posterior["fitness_matrix"].values
