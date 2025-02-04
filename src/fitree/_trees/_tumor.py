@@ -1,3 +1,4 @@
+import numpy as np
 from anytree import PreOrderIter, RenderTree
 
 from ._subclone import Subclone
@@ -9,9 +10,9 @@ class TumorTree:
         patient_id: int,
         tree_id: int,
         root: Subclone,
+        tumor_size: float,
         weight: float = 1.0,
         sampling_time: float | None = None,
-        tumor_size: float | None = None,
     ) -> None:
         """A tumor tree
 
@@ -19,6 +20,7 @@ class TumorTree:
                 patient_id (int): patient id
                 tree_id (int): tree id
                 root (Subclone): root subclone
+                tumor_size (float): total number of tumor cells
                 weight (float, optional): weight of the tree. Defaults to 1.0.
                 sampling_time (float, optional): sampling time of the tree.
                         Defaults to None.
@@ -32,11 +34,9 @@ class TumorTree:
         self.root = root
         self.weight = weight
         self.sampling_time = sampling_time
+        self.tumor_size = tumor_size
 
-        if tumor_size is None:
-            self.tumor_size = self.get_tumor_size()
-        else:
-            self.tumor_size = tumor_size
+        self.assign_cells()
 
     def get_mutation_ids(self) -> set:
         all_mutation_ids = set()
@@ -58,17 +58,20 @@ class TumorTree:
             + f" - Mutations: {node.mutation_ids} \n"
             + f" - Cell number: {node.cell_number:.4E} \n"
             + f" - Sequence cell number: {node.seq_cell_number:.4E} \n"
-            + f" - Mutation rate: {node.growth_params['nu']:.4E} \n"
-            + f" - Net growth rate: {node.growth_params['lam']:.4E}"
         )
 
         return tree_str
 
-    def get_tumor_size(self) -> float:
-        tumor_size = 0
+    def assign_cells(self) -> None:
+        # Compute the relative frequency of each subclone except the root
         node_iter = PreOrderIter(self.root)
-        next(node_iter)  # Skip the root node
-        for node in node_iter:
-            tumor_size += node.cell_number
+        next(node_iter)  # skip the root
+        seq_cells = np.array([node.seq_cell_number for node in node_iter])
+        freq = seq_cells / np.sum(seq_cells)
+        cells = self.tumor_size * freq
 
-        return tumor_size
+        # Assign the cells to each subclone
+        node_iter = PreOrderIter(self.root)
+        next(node_iter)
+        for node, cell_number in zip(node_iter, cells):
+            node.cell_number = cell_number

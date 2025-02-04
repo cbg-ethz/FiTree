@@ -16,8 +16,8 @@ class Subclone(SubcloneBase, NodeMixin):
         self,
         node_id: int,
         mutation_ids: Iterable[int],
-        cell_number: int,
-        seq_cell_number: int | None = None,
+        seq_cell_number: int,
+        cell_number: int | None = None,
         parent: Subclone | None = None,
         children: Iterable[Subclone] | None = None,
         genotype: list[int] | None = None,
@@ -40,12 +40,12 @@ class Subclone(SubcloneBase, NodeMixin):
         super().__init__()
         self.node_id = node_id
         self.mutation_ids = mutation_ids
-        self.cell_number = cell_number
+        self.seq_cell_number = seq_cell_number
 
-        if seq_cell_number is None:
-            self.seq_cell_number = cell_number
+        if cell_number is None:
+            self.cell_number = seq_cell_number
         else:
-            self.seq_cell_number = seq_cell_number
+            self.cell_number = cell_number
 
         self.parent = parent
         if children:
@@ -208,23 +208,6 @@ class Subclone(SubcloneBase, NodeMixin):
 
         if return_dict:
             return growth_params
-
-    def get_C_tilde(self, t: float | np.ndarray) -> float | np.ndarray:
-        """Get the time-adjusted number of cells based on Theorem 1
-        Formula: t^(-(r - 1)) * exp(-delta * t) * C = C_tilde
-
-        Returns:
-            float | np.ndarray: time-adjusted number of cells
-        """
-
-        if self.is_root:
-            return self.cell_number
-        else:
-            return (
-                np.power(t, -(self.growth_params["r"] - 1))  # pyright: ignore
-                * np.exp(-self.growth_params["delta"] * t)  # pyright: ignore
-                * self.cell_number
-            )
 
     def get_mrca(self) -> Subclone | Any:
         """Get the most recent common ancestor of the subclone

@@ -67,7 +67,7 @@ def get_augmented_tree(
                 Subclone(
                     node_id=tree.size,
                     mutation_ids=[j],
-                    cell_number=0,
+                    seq_cell_number=0,
                     parent=node,
                 )
     else:
@@ -87,7 +87,7 @@ def wrap_trees(
 
     # 1. Create the union tree
     union_root = Subclone(
-        node_id=0, mutation_ids=[], cell_number=trees.C_0  # pyright: ignore
+        node_id=0, mutation_ids=[], seq_cell_number=trees.C_0  # pyright: ignore
     )
 
     node_dict = {union_root.node_path: union_root}
@@ -104,7 +104,7 @@ def wrap_trees(
                     new_node = Subclone(
                         node_id=union_root.size,
                         mutation_ids=child.mutation_ids,
-                        cell_number=child.cell_number,  # this number is not used
+                        seq_cell_number=child.seq_cell_number,  # not used
                         parent=union_node,
                     )
                     node_dict[child_path] = new_node
@@ -123,7 +123,9 @@ def wrap_trees(
         max_level=augment_max_level,
     )
 
-    union_tree = TumorTree(patient_id=-1, tree_id=-1, root=union_root)
+    # Create the union tree object
+    # The tumor size is set to 1.0 for the union tree, which is not used
+    union_tree = TumorTree(patient_id=-1, tree_id=-1, root=union_root, tumor_size=1.0)
 
     # 2. Create the vectorized trees
     N_trees = trees.N_trees

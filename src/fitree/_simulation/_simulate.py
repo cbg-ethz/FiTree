@@ -69,7 +69,7 @@ def _generate_one_tree(
 
     """ Initialization phase """
     t = 0
-    root = Subclone(node_id=0, mutation_ids=[], cell_number=C_0)
+    root = Subclone(node_id=0, mutation_ids=[], seq_cell_number=C_0)
     sampling = 0
 
     """ Gillespie loop """
@@ -174,10 +174,18 @@ def _generate_valid_tree(
         if t < t_max:
             break
 
+    tumor_size = 0
+    node_iter = PreOrderIter(root)
+    next(node_iter)  # Skip the root node
+    for node in node_iter:
+        tumor_size += node.cell_number
+
     if return_time:
-        tree = TumorTree(patient_id=i, tree_id=i, root=root, sampling_time=t)
+        tree = TumorTree(
+            patient_id=i, tree_id=i, root=root, sampling_time=t, tumor_size=tumor_size
+        )
     else:
-        tree = TumorTree(patient_id=i, tree_id=i, root=root)
+        tree = TumorTree(patient_id=i, tree_id=i, root=root, tumor_size=tumor_size)
 
     return tree
 

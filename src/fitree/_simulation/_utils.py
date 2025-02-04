@@ -136,7 +136,7 @@ def _expand_tree(
                     new_node = Subclone(
                         node_id=tree.size,
                         mutation_ids=[j],
-                        cell_number=0,
+                        seq_cell_number=0,
                         parent=node,
                     )
                     new_node.get_growth_params(

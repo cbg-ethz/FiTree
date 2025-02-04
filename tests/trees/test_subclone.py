@@ -4,12 +4,12 @@ from fitree._trees import Subclone
 
 
 def test_genotype():
-    root = Subclone(node_id=0, mutation_ids=[0, 1], cell_number=100)
-    v1 = Subclone(node_id=1, mutation_ids=[2], cell_number=50, parent=root)
-    v2 = Subclone(node_id=2, mutation_ids=[3], cell_number=50, parent=root)
-    v3 = Subclone(node_id=3, mutation_ids=[2, 5], cell_number=25, parent=v1)
-    v4 = Subclone(node_id=4, mutation_ids=[4], cell_number=25, parent=v2)
-    v5 = Subclone(node_id=5, mutation_ids=[5], cell_number=25, parent=v2)
+    root = Subclone(node_id=0, mutation_ids=[0, 1], seq_cell_number=100)
+    v1 = Subclone(node_id=1, mutation_ids=[2], seq_cell_number=50, parent=root)
+    v2 = Subclone(node_id=2, mutation_ids=[3], seq_cell_number=50, parent=root)
+    v3 = Subclone(node_id=3, mutation_ids=[2, 5], seq_cell_number=25, parent=v1)
+    v4 = Subclone(node_id=4, mutation_ids=[4], seq_cell_number=25, parent=v2)
+    v5 = Subclone(node_id=5, mutation_ids=[5], seq_cell_number=25, parent=v2)
 
     assert root.genotype == [0, 1]
     assert v1.genotype == [0, 1, 2]
@@ -25,10 +25,10 @@ def test_genotype():
 
 
 def test_growth_params():
-    root = Subclone(node_id=0, mutation_ids=[0, 1], cell_number=100)
-    v1 = Subclone(node_id=1, mutation_ids=[2], cell_number=50, parent=root)
-    v2 = Subclone(node_id=2, mutation_ids=[3], cell_number=50, parent=root)
-    v3 = Subclone(node_id=3, mutation_ids=[2, 4, 5], cell_number=25, parent=v1)
+    root = Subclone(node_id=0, mutation_ids=[0, 1], seq_cell_number=100)
+    v1 = Subclone(node_id=1, mutation_ids=[2], seq_cell_number=50, parent=root)
+    v2 = Subclone(node_id=2, mutation_ids=[3], seq_cell_number=50, parent=root)
+    v3 = Subclone(node_id=3, mutation_ids=[2, 4, 5], seq_cell_number=25, parent=v1)
 
     mu_vec = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6])
     F_mat = np.ones((6, 6))
@@ -86,12 +86,12 @@ def test_growth_params():
 
 
 def test_mrca():
-	root = Subclone(node_id=0, mutation_ids=[0, 1], cell_number=100)
-	v1 = Subclone(node_id=1, mutation_ids=[2], cell_number=50, parent=root)
-	v2 = Subclone(node_id=2, mutation_ids=[3], cell_number=50, parent=root)
-	v3 = Subclone(node_id=3, mutation_ids=[2, 5], cell_number=25, parent=v1)
-	v4 = Subclone(node_id=4, mutation_ids=[4], cell_number=25, parent=v2)
-	v5 = Subclone(node_id=5, mutation_ids=[5], cell_number=25, parent=v2)
+	root = Subclone(node_id=0, mutation_ids=[0, 1], seq_cell_number=100)
+	v1 = Subclone(node_id=1, mutation_ids=[2], seq_cell_number=50, parent=root)
+	v2 = Subclone(node_id=2, mutation_ids=[3], seq_cell_number=50, parent=root)
+	v3 = Subclone(node_id=3, mutation_ids=[2, 5], seq_cell_number=25, parent=v1)
+	v4 = Subclone(node_id=4, mutation_ids=[4], seq_cell_number=25, parent=v2)
+	v5 = Subclone(node_id=5, mutation_ids=[5], seq_cell_number=25, parent=v2)
 
 	assert root.get_mrca() == root
 	assert v1.get_mrca() == v1

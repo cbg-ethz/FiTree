@@ -32,7 +32,7 @@ def plot_tree(
     """Plot a tree in the cohort"""
     tree = cohort.trees[tree_id]
     tree_label = cohort.tree_labels[tree_id]
-    tumor_size = tree.get_tumor_size()
+    tumor_size = tree.tumor_size
 
     # Define the directed graph
     graph = graphviz.Digraph(
