@@ -71,6 +71,11 @@
     <label class="md-overlay" for="__drawer"></label>
     <div data-md-component="skip">
       
+        
+        <a href="#fitree" class="md-skip">
+          Skip to content
+        </a>
+      
     </div>
     <div data-md-component="announce">
       
@@ -101,7 +106,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Documentation
+              Home
             
           </span>
         </div>
@@ -180,7 +185,7 @@
     
     
       <div class="md-header__source">
-        <a href="https://github.com/xgluo/FiTree" title="Go to repository" class="md-source" data-md-component="source">
+        <a href="https://github.com/cbg-ethz/FiTree" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
@@ -217,7 +222,7 @@
   
     
   
-  Documentation
+  Home
 
       </a>
     </li>
@@ -275,7 +280,7 @@
   </label>
   
     <div class="md-nav__source">
-      <a href="https://github.com/xgluo/FiTree" title="Go to repository" class="md-source" data-md-component="source">
+      <a href="https://github.com/cbg-ethz/FiTree" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
@@ -301,17 +306,77 @@
       <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
       
       
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
       
       <a href="." class="md-nav__link md-nav__link--active">
         
   
   <span class="md-ellipsis">
-    Documentation
+    Home
     
   </span>
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Installation
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#getting-started" class="md-nav__link">
+    <span class="md-ellipsis">
+      Getting started
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#preprint" class="md-nav__link">
+    <span class="md-ellipsis">
+      Preprint
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -357,9 +422,28 @@
   
 
 
-  <h1>Documentation</h1>
-
-
+<p><img alt="PyPI" src="https://img.shields.io/pypi/v/fitree" />
+<img alt="Build Status" src="https://img.shields.io/github/actions/workflow/status/cbg-ethz/FiTree/test.yaml" />
+<img alt="Code style: Black" src="https://img.shields.io/badge/code%20style-black-000000.svg" />
+<img alt="Repo Status" src="https://img.shields.io/badge/status-active-brightgreen" /></p>
+<h1 id="fitree">FiTree</h1>
+<p>FiTree is a Python package for Bayesian inference of fitness landscapes via tree-structured branching processes.</p>
+<h2 id="installation">Installation</h2>
+<pre><code>pip install fitree
+</code></pre>
+<h2 id="getting-started">Getting started</h2>
+<p>FiTree takes tumor mutation trees as input and learns a matrix representing the fitness effects of individual mutations as well as their pairwise interactions. We provide small examples on how to use FiTree:</p>
+<ol>
+<li>
+<p><a href="https://github.com/cbg-ethz/FiTree/blob/main/demo/AML/process_trees.ipynb">Pre-processing of tree input</a></p>
+</li>
+<li>
+<p><a href="https://github.com/cbg-ethz/FiTree/blob/main/demo/simulations/simulation.ipynb">Tree generation and inference</a></p>
+</li>
+</ol>
+<p>For large-scale simulation studies and real data application, we recommend looking into the <a href="https://github.com/cbg-ethz/FiTree/tree/main/workflows">snakemake workflows</a>.</p>
+<h2 id="preprint">Preprint</h2>
+<p>The preprint of the paper is provided <a href="https://www.biorxiv.org/content/10.1101/2025.01.24.634649v1">here</a>.</p>
 
 
 
