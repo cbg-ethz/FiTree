@@ -9,6 +9,16 @@ def plot_fmat(
     to_sort: bool = True,
     figsize: tuple = (8, 6),
 ) -> None:
+    """This function plots the fitness matrix F.
+
+    Args:
+        F_mat (np.ndarray): Fitness matrix.
+        mutation_labels (list, optional): Mutation labels. Defaults to None.
+        to_sort (bool, optional): Whether to sort the rows and columns of the
+        fitness matrix based on diagonal elements. Defaults to True.
+        figsize (tuple, optional): Figure size. Defaults to (8, 6).
+    """
+
     if mutation_labels is None:
         mutation_labels = [f"M{i}" for i in range(F_mat.shape[1])]
 
@@ -51,6 +61,15 @@ def plot_fmat_posterior(
     mutation_labels: list | None = None,
     figsize: tuple = (8, 7),
 ) -> None:
+    """This function plots the posterior of the fitness matrix F.
+
+    Args:
+        F_mat_posterior (np.ndarray): Posterior of the fitness matrix.
+        true_F_mat (np.ndarray, optional): True fitness matrix. Defaults to None.
+        mutation_labels (list, optional): Mutation labels. Defaults to None.
+        figsize (tuple, optional): Figure size. Defaults to (
+    """
+
     n_mutations = F_mat_posterior.shape[1]
 
     F_mat_posterior = F_mat_posterior.transpose(0, 2, 1)

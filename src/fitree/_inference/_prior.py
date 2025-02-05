@@ -252,6 +252,24 @@ def prior_fitree(
     min_occurrences: int = 0,
     augment_max_level: int = 2,
 ) -> pm.Model:
+    """Construct a prior model for the fitness matrix F.
+
+    Args:
+        trees: TumorTreeCohort object.
+        diag_mean: Mean of the normal prior for the diagonal entries.
+        diag_sigma: Standard deviation of the normal prior for the diagonal
+          entries.
+        offdiag_mean: Mean of the normal prior for the off-diagonal entries.
+        offdiag_sigma: Standard deviation of the normal prior for the
+        off-diagonal entries.
+        min_occurrences: Minimum number of occurrences for a mutation
+        to be considered.
+        augment_max_level: Maximum level of augmentation for the trees.
+
+    Returns:
+        model: PyMC model for the fitness matrix F.
+    """
+
     nr_mutations = trees.n_mutations
 
     vec_trees, _ = wrap_trees(trees, augment_max_level=augment_max_level)

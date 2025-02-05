@@ -22,7 +22,12 @@ class NumpyEncoder(json.JSONEncoder):
 
 
 def save_cohort_to_json(cohort: TumorTreeCohort, path: str) -> None:
-    """Save a TumorTreeCohort object to a JSON file."""
+    """Save a TumorTreeCohort object to a JSON file.
+
+    Args:
+        cohort: TumorTreeCohort object to be saved.
+        path: Path to the JSON file where the cohort will be saved.
+    """
 
     exporter = DictExporter()
 
@@ -64,7 +69,11 @@ def save_cohort_to_json(cohort: TumorTreeCohort, path: str) -> None:
 
 
 def load_cohort_from_json(path: str) -> TumorTreeCohort:
-    """Load a TumorTreeCohort object from a JSON file."""
+    """Load a TumorTreeCohort object from a JSON file.
+
+    Args:
+        path: Path to the JSON file containing the TumorTreeCohort object.
+    """
 
     # Initialize the Subclone importer
     importer = DictImporter(nodecls=Subclone)  # pyright: ignore
@@ -113,7 +122,12 @@ def load_cohort_from_json(path: str) -> TumorTreeCohort:
 
 
 def save_vectorized_trees_npz(vectorized_trees: VectorizedTrees, path: str):
-    """Save VectorizedTrees NamedTuple to a compressed .npz file."""
+    """Save VectorizedTrees NamedTuple to a compressed .npz file.
+
+    Args:
+        vectorized_trees: VectorizedTrees NamedTuple to be saved.
+        path: Path to the .npz file where the object will be saved.
+    """
     np.savez_compressed(
         path,
         cell_number=vectorized_trees.cell_number,
@@ -144,7 +158,11 @@ def save_vectorized_trees_npz(vectorized_trees: VectorizedTrees, path: str):
 
 
 def load_vectorized_trees_npz(path: str) -> VectorizedTrees:
-    """Load a VectorizedTrees NamedTuple from an .npz file."""
+    """Load a VectorizedTrees NamedTuple from an .npz file.
+
+    Args:
+        path: Path to the .npz file containing the VectorizedTrees object.
+    """
     data = np.load(path)
     return VectorizedTrees(
         cell_number=data["cell_number"],

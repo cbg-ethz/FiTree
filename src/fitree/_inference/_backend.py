@@ -27,6 +27,20 @@ class FiTreeJointLikelihood(Op):
         eps: float = 1e-64,
         tau: float = 1e-2,
     ):
+        """This object computes the joint log-likelihood of the fitness matrix F_mat
+        to be used in the MCMC sampling.
+
+        Args:
+            trees (TumorTreeCohort): TumorTreeCohort object.
+            augment_max_level (int, optional): Maximum level of augmentation.
+            C_s (float, optional): scaling factor at sampling.
+            conditioning (bool, optional): Whether to condition on the observed trees.
+            lifetime_risk_mean (float, optional): Mean lifetime risk.
+            lifetime_risk_std (float, optional): Standard deviation of lifetime risk.
+            eps (float, optional): machine epsilon.
+            tau (float, optional): time window for the numerical integration.
+        """
+
         self.vectorized_trees, _ = wrap_trees(trees, augment_max_level)
         self.N_patients = trees.N_patients
         self.eps = eps

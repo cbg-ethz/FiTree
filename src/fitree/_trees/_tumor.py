@@ -45,6 +45,12 @@ class TumorTree:
         return all_mutation_ids
 
     def __str__(self) -> str:
+        """String representation of the tumor tree
+
+        Returns:
+                str: string representation of the tumor tree
+        """
+
         if self.sampling_time is not None:
             tree_str = f"Tumor tree {self.tree_id} of patient \
                 {self.patient_id} at time {self.sampling_time}\n"

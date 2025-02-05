@@ -808,6 +808,14 @@ def update_params(
 ):
     """This function updates the growth parameters of the tree
     based on the fitness matrix.
+
+    Args:
+        trees : VectorizedTrees
+            The tree object.
+        F_mat : jnp.ndarray
+            The fitness matrix.
+        zero_window : float, optional
+            The zero window for numerical stability. Defaults to 1e-2.
     """
 
     def scan_fun(trees, i):
@@ -969,6 +977,14 @@ def compute_normalizing_constant(
     """This function computes the normalizing constant for the
     joint likelihood of the trees.
     P(T_s < t_max) = 1 - P(T_s > t_max)
+
+    Args:
+        trees : VectorizedTrees
+            The tree object.
+        eps : float, optional
+            The machine epsilon. Defaults to 1e-64.
+        tau : float, optional
+            The time window for the numerical integration. Defaults to 1e-2.
     """
 
     t = trees.t_max
@@ -1137,11 +1153,10 @@ def jlogp(
     eps: float = 1e-64,
     tau: float = 1e-2,
 ):
-    """This function computes the joint log-likelihood of a set of trees
-    given the fitness matrix F_mat after normalizing it by the marginal
-    likelihood of the sampling event occurring before some predefined
-    maximum time. (See Theorem 3 in the supplement)
-    """
+    # This function computes the joint log-likelihood of a set of trees
+    # given the fitness matrix F_mat after normalizing it by the marginal
+    # likelihood of the sampling event occurring before some predefined
+    # maximum time. (See Theorem 3 in the supplement)
 
     # Update C_s in the trees object
     trees = trees._replace(C_s=C_s)

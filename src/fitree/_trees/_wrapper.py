@@ -7,6 +7,35 @@ from fitree._trees import TumorTreeCohort, TumorTree, Subclone
 
 
 class VectorizedTrees(NamedTuple):
+    """This class stores the trees in a vectorized format
+
+    Args:
+        cell_number: cell number of each node
+        seq_cell_number: sequenced cell number of each node
+        observed: observed status of each node
+        sampling_time: sampling time of each tree
+        weight: weight of each tree
+        tumor_size: tumor size of each tree
+        node_id: node ID of each node
+        parent_id: parent ID of each node
+        alpha: alpha parameter of each node
+        nu: nu parameter of each node
+        lam: lambda parameter of each node
+        rho: rho parameter of each node
+        phi: phi parameter of each node
+        delta: delta parameter of each node
+        r: r parameter of each node
+        gamma: gamma parameter of each node
+        genotypes: genotype of each node
+        N_trees: number of observed trees
+        N_patients: number of patients
+        n_nodes: number of union nodes (w/o root)
+        beta: common death rate
+        C_s: sampling scale
+        C_0: root size
+        t_max: maximum sampling time
+    """
+
     # All trees are stored in array format for vectorized computation in JAX
 
     cell_number: jax.Array | np.ndarray  # (N_trees, n_nodes)
@@ -83,6 +112,13 @@ def wrap_trees(
 ) -> tuple[VectorizedTrees, TumorTree]:
     """This function takes a TumorTreeCohort object as input
     and returns a VectorizedTrees object.
+
+    Args:
+        trees (TumorTreeCohort): a cohort of tumor trees
+        augment_max_level (int, optional): maximum level for augmentation.
+
+    Returns:
+        tuple: tumor tree cohort in vectorized format and the union tree
     """
 
     # 1. Create the union tree

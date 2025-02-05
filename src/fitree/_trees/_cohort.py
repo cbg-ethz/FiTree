@@ -23,6 +23,25 @@ class TumorTreeCohort:
         patient_labels: list | Any = None,
         lifetime_risk: float | Any = None,
     ) -> None:
+        """A cohort of tumor mutation trees
+
+        Args:
+            name (str): name of the cohort
+            trees (list[TumorTree], optional): list of tumor trees.
+            n_mutations (int, optional): number of mutations.
+            N_trees (int, optional): number of trees.
+            N_patients (int, optional): number of patients.
+            mu_vec (np.ndarray, optional): mutation rates.
+            common_beta (float, optional): common beta parameter.
+            C_0 (int, float, optional): static wild-type population size.
+            C_seq (int, float, optional): number of sequenced cells.
+            C_sampling (int, float, optional): scaling factor for the sampling time.
+            t_max (float, optional): maximum time.
+            mutation_labels (list, optional): mutation labels.
+            tree_labels (list, optional): tree labels.
+            patient_labels (list, optional): patient labels.
+            lifetime_risk (float, optional): lifetime risk.
+        """
         self.name = name
         self.trees = trees
         self.n_mutations = n_mutations

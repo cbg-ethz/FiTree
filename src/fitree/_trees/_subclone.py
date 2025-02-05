@@ -27,14 +27,15 @@ class Subclone(SubcloneBase, NodeMixin):
         """A subclone in the tree
 
         Args:
-            node_id (int): node id
-            mutation_ids (Iterable[int]): mutation_ids in the subclone
-            cell_number (int): number of cells attached
-            seq_cell_number (int, optional): number of cells in the
-                sequencing data. Defaults to None.
-            parent (Subclone, optional): parent subclone. Defaults to None.
-            children (Iterable[Subclone], optional): children subclones.
-                Defaults to None.
+            node_id: node ID
+            mutation_ids: mutation IDs
+            seq_cell_number: number of cells in the subclone
+            cell_number: number of cells in the subclone
+            parent: parent subclone
+            children: children subclones
+            genotype: genotype of the subclone
+            growth_params: growth parameters of the subclone
+            node_path: path of the subclone in the tree
         """
 
         super().__init__()
@@ -80,6 +81,11 @@ class Subclone(SubcloneBase, NodeMixin):
             )
 
     def get_genotype(self) -> list[int]:
+        """Get the genotype of the subclone
+
+        Returns:
+            list: genotype
+        """
         genotype = set()
         for node in self.path:
             genotype.update(node.mutation_ids)  # pyright: ignore
@@ -208,21 +214,3 @@ class Subclone(SubcloneBase, NodeMixin):
 
         if return_dict:
             return growth_params
-
-    def get_mrca(self) -> Subclone | Any:
-        """Get the most recent common ancestor of the subclone
-
-        Returns:
-            Subclone: most recent common ancestor
-        """
-
-        if self.is_root:
-            return self
-
-        # recursively find the ancestor of the subclone
-        # which has the root as its parent
-        mrca = self
-        while not mrca.parent.is_root:
-            mrca = mrca.parent
-
-        return mrca

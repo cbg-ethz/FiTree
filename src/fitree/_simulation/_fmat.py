@@ -29,8 +29,20 @@ def generate_fmat(
     p_offdiag: float = 0.5,
     positive_ratio: float = 0.5,
 ) -> np.ndarray:
-    # Sample the entries of the fitness matrix
-    # from spike-and-slab distributions
+    """
+    Generate a fitness matrix with diagonal and off-diagonal elements.
+
+    Args:
+        rng (np.random.Generator): Random number generator.
+        n_mutations (int): Number of mutations.
+        mean_diag (float): Mean of the diagonal elements.
+        sigma_diag (float): Standard deviation of the diagonal elements.
+        mean_offdiag (float): Mean of the off-diagonal elements.
+        sigma_offdiag (float): Standard deviation of the off-diagonal elements.
+        p_diag (float): Probability of a diagonal element being non-zero.
+        p_offdiag (float): Probability of an off-diagonal element being non-zero.
+        positive_ratio (float): Ratio of positive diagonal elements.
+    """
 
     # Determine the parameters of the log-normal distribution
     lnorm_var_diag = np.log1p(sigma_diag**2 / mean_diag**2)

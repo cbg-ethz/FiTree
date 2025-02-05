@@ -1,7 +1,7 @@
 site_name: Bayesian inference of fitness landscapes via tree-structured branching processes
 
 repo_name: FiTree
-repo_url: https://github.com/xgluo/FiTree
+repo_url: https://github.com/cbg-ethz/FiTree
 
 theme:
   name: "material"
@@ -41,7 +41,7 @@ plugins:
 
 
 nav:
-  - Documentation: index.md
+  - Home: index.md
   - API Reference: api.md
 
 

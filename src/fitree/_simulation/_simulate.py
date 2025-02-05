@@ -213,48 +213,27 @@ def generate_trees(
     Generate a list of trees with the given number of mutations and the given
     mutation rate vector and fitness matrix.
 
-    Parameters
-    ----------
-    rng : np.random.Generator
-                        The random number generator.
-    n_mutations : int
-            The number of mutations to be considered.
-    N_trees : int
-            The number of trees to generate.
-    mu_vec : np.ndarray
-            The n-by-1 mutation rate vector.
-    F_mat : np.ndarray
-            The n-by-n fitness matrix.
-    common_beta : float, optional
-            The common death rate. Defaults to 0.8 (average 40 weeks).
-    C_0 : int | float | np.ndarray, optional
-            The static wild-type population size. Defaults to 1e5.
-    C_seq : int | np.ndarray, optional
-            Number of cells to sequence. Defaults to 1e4.
-    C_sampling : int | float | np.ndarray, optional
-            The number of cells to sample. Defaults to 1e9.
-    rule : str, optional
-            The type of the tree generation. Defaults to "parallel".
-            All options:
-            1. "ISA": Infinite Sites Assumption.
-            2. "parallel": parallel mutations are allowed, but no repeated mutations
-                    along the same branch or duplicated siblings.
-            3. "repeat": repeated mutations are allowed, but up to k_repeat times.
-            4. "multiple": multiple mutations in the same subclone are allowed,
-                    but up to k_multiple times.
-    tau: float, optional
-            The step size of the tau-leaping algorithm. Defaults to 1e-3.
-    t_max : float, optional
-            The maximum time to generate the tree. Defaults to 100.
-    return_time : bool, optional
-            Whether to return the sampling time. Defaults to True.
-
-    Returns
-    -------
-    list[Subclone]
-            The generated trees.
-    | list[(Subclone, float)]
-            Generated trees and the times.
+    Args:
+        rng (np.random.Generator): The random number generator.
+        n_mutations (int): The number of mutations to be considered.
+        N_trees (int): The number of trees to be generated.
+        mu_vec (np.ndarray): The n-by-1 mutation rate vector.
+        F_mat (np.ndarray): The n-by-n fitness matrix.
+        common_beta (float, optional): The common death rate.
+        C_0 (int | float, optional): The static wild-type population size.
+        C_seq (int, optional): Number of cells to sequence.
+        C_sampling (int | float, optional): The number of cells to sample.
+        tau (float, optional): The step size of the tau-leaping algorithm.
+        t_max (float, optional): The maximum time to generate the tree.
+        rule (str, optional): The type of the tree generation.
+            Currently, only "parallel" is supported.
+        k_repeat (int, optional): The maximum number of repeated mutations.
+        k_multiple (int, optional): The maximum number of multiple mutations.
+        return_time (bool, optional): Whether to return the sampling time or not.
+        parallel (bool, optional): Whether to use parallel processing or not.
+        n_jobs (int, optional): The number of jobs to run in parallel.
+            If -1, then all available cores are used.
+            Defaults to -1.
     """
 
     seeds = rng.integers(0, 2**32 - 1, size=N_trees)

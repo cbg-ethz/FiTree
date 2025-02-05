@@ -23,11 +23,6 @@ from ._inference import (
     compute_normalizing_constant,
     FiTreeJointLikelihood,
     prior_fitree,
-    recoverable_entries,
-    greedy_init_fmat,
-    init_prior_rhs,
-    init_prior_normal,
-    prior_fitree_mixed,
 )
 
 __all__ = [
@@ -52,9 +47,4 @@ __all__ = [
     "compute_normalizing_constant",
     "FiTreeJointLikelihood",
     "prior_fitree",
-    "recoverable_entries",
-    "greedy_init_fmat",
-    "init_prior_rhs",
-    "init_prior_normal",
-    "prior_fitree_mixed",
 ]

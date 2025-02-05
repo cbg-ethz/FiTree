@@ -1,3 +1,9 @@
+![PyPI](https://img.shields.io/pypi/v/fitree)
+![Build Status](https://img.shields.io/github/actions/workflow/status/cbg-ethz/FiTree/test.yaml)
+![Code style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)
+![Repo Status](https://img.shields.io/badge/status-active-brightgreen)
+
+
 # FiTree
 
 FiTree is a Python package for Bayesian inference of fitness landscapes via tree-structured branching processes.

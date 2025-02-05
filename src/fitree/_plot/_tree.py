@@ -29,6 +29,14 @@ COLOR_PALETTE = [
 def plot_tree(
     cohort: TumorTreeCohort, tree_id: int, filename: str | None = None
 ) -> None:
+    """This function plots a tree in the cohort.
+
+    Args:
+        cohort (TumorTreeCohort): A cohort of tumor mutation trees.
+        tree_id (int): Tree ID.
+        filename (str, optional): Filename to save the plot. Defaults to None.
+    """
+
     """Plot a tree in the cohort"""
     tree = cohort.trees[tree_id]
     tree_label = cohort.tree_labels[tree_id]
