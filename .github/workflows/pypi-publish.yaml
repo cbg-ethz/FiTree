@@ -2,11 +2,18 @@ name: Publish to PyPI
 
 on:
   release:
-    types: [published]
+    types: [created]
 
 jobs:
-  deploy:
+  pypi-publish:
+    name: Publish release to PyPI
+
     runs-on: ubuntu-latest
+
+    environment:
+      name: pypi
+      url: https://pypi.org/p/fitree
+
     strategy:
       fail-fast: true
       matrix:
