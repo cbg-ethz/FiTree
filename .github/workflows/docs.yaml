@@ -1,40 +1,37 @@
-# This pipeline builds the documentation.
-name: docs
+name: Deploy MkDocs Documentation
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main  # Change to your default branch if different
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.11"
-          cache: "pip"
+          python-version: '3.11'  # Use the same Python version as your project
+
       - name: Install Poetry
-        uses: snok/install-poetry@v1
+        run: pip install poetry
+
+      - name: Install dependencies
+        run: poetry install --no-interaction --no-root
+
+      - name: Build MkDocs
+        run: poetry run mkdocs build
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-          version: "1.5.1"
-      - name: Cache dependencies
-        id: cache-deps
-        uses: actions/cache@v2
-        with:
-          path: .venv
-          key: pydeps-${{ hashFiles('**/poetry.lock') }}
-      - name: Install the dependencies
-        run: poetry install --no-interaction --no-root --with dev
-        if: steps.cache-deps.outputs.cache-hit != 'true'
-      - name: Install the module
-        run: poetry install --with dev --no-interaction
-      - name: Generate the documentation
-        run: poetry run mkdocs gh-deploy --force
-        
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
