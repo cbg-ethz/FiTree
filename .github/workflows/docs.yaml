@@ -6,7 +6,7 @@ on:
       - main  # Change to your default branch if different
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   deploy:
