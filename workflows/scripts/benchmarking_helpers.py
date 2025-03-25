@@ -234,7 +234,7 @@ def prepare_fitclone_input(
             f.write("h: 0.1\n")
             f.write("infer_epsilon: 0.025\n")
             f.write("infer_epsilon_tolerance: 0\n")
-            f.write("inference_n_iter: 200\n")
+            f.write("inference_n_iter: 2000\n")
             f.write(f"learn_time: {vec_trees.sampling_time[tree_id]}\n")
             f.write("lower_s: -5\n")
             f.write("upper_s: 5\n")

@@ -18,8 +18,10 @@ N_TREES: list[int] = [200, 500]
 N_SIMULATIONS: int = 100
 N_CHAINS: int = 12
 
-fitclone_exe_dir: str = "/cluster/home/luox/fitclone/fitclone"
-scifil_exe_dir: str = "/cluster/home/luox/SCIFIL"
+fitclone_exe_dir: str = "/cluster/home/luox/fitclone/fitclone"  # replace with the path to the fitclone executable
+scifil_exe_dir: str = (
+    "/cluster/home/luox/SCIFIL"  # replace with the path to the SCIFIL executable
+)
 
 
 ######### Workflow #########
@@ -58,11 +60,6 @@ rule all:
             i=range(N_SIMULATIONS),
         ),
         expand(
-            "data/muts5_trees{N_trees}/sim{i}/fitclone_input/.done",
-            N_trees=N_TREES,
-            i=range(N_SIMULATIONS),
-        ),
-        expand(
             "results/muts{n_mutations}_trees{N_trees}/sim{i}/SCIFIL_result.txt",
             n_mutations=N_MUTATIONS,
             N_trees=N_TREES,
@@ -81,42 +78,10 @@ rule all:
             i=range(N_SIMULATIONS),
         ),
         expand(
-            "results/muts5_trees{N_trees}/sim{i}/fitclone_results/.done",
-            N_trees=N_TREES,
-            i=range(N_SIMULATIONS),
-        ),
-        expand(
-            "results/muts5_trees{N_trees}/sim{i}/fitclone_fitness.txt",
-            N_trees=N_TREES,
-            i=range(N_SIMULATIONS),
-        ),
-        expand(
-            "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior_masked_normal/chain{chain}.nc",
+            "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitclone_fitness.txt",
             n_mutations=N_MUTATIONS,
             N_trees=N_TREES,
             i=range(N_SIMULATIONS),
-            chain=range(N_CHAINS),
-        ),
-        expand(
-            "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior_normal/chain{chain}.nc",
-            n_mutations=[10],
-            N_trees=[200],
-            i=range(N_SIMULATIONS),
-            chain=range(N_CHAINS),
-        ),
-        expand(
-            "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior_conditional_normal/chain{chain}.nc",
-            n_mutations=[10],
-            N_trees=[200],
-            i=range(N_SIMULATIONS),
-            chain=range(N_CHAINS),
-        ),
-        expand(
-            "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior/chain{chain}_masked_mixed.nc",
-            n_mutations=N_MUTATIONS,
-            N_trees=N_TREES,
-            i=range(N_SIMULATIONS),
-            chain=range(N_CHAINS),
         ),
         expand(
             "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior_masked_normal.nc",
@@ -134,12 +99,6 @@ rule all:
             "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior_conditional_normal.nc",
             n_mutations=[10],
             N_trees=[200],
-            i=range(N_SIMULATIONS),
-        ),
-        expand(
-            "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior_masked_mixed.nc",
-            n_mutations=N_MUTATIONS,
-            N_trees=N_TREES,
             i=range(N_SIMULATIONS),
         ),
         expand(
@@ -287,9 +246,9 @@ rule prepare_SCIFIL_input:
 
 rule prepare_fitclone_input:
     input:
-        "data/muts5_trees{N_trees}/sim{i}/vectorized_trees.npz",
+        "data/muts{n_mutations}_trees{N_trees}/sim{i}/vectorized_trees.npz",
     output:
-        "data/muts5_trees{N_trees}/sim{i}/fitclone_input/.done",
+        "data/muts{n_mutations}_trees{N_trees}/sim{i}/fitclone_input/.done",
     threads: 1
     resources:
         runtime=60,
@@ -297,10 +256,10 @@ rule prepare_fitclone_input:
         nodes=1,
     params:
         fitclone_data_dir=os.path.abspath(
-            "data/muts5_trees{N_trees}/sim{i}/fitclone_input"
+            "data/muts{n_mutations}_trees{N_trees}/sim{i}/fitclone_input"
         ),
         fitclone_results_dir=os.path.abspath(
-            "results/muts5_trees{N_trees}/sim{i}/fitclone_results"
+            "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitclone_results"
         ),
         fitclone_exe_dir=fitclone_exe_dir,
     run:
@@ -376,9 +335,9 @@ rule run_diffusion:
 
 rule run_fitclone:
     input:
-        "data/muts5_trees{N_trees}/sim{i}/fitclone_input/.done",
+        "data/muts{n_mutations}_trees{N_trees}/sim{i}/fitclone_input/.done",
     output:
-        "results/muts5_trees{N_trees}/sim{i}/fitclone_results/.done",
+        "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitclone_results/.done",
     threads: 100
     resources:
         runtime=240,
@@ -386,10 +345,10 @@ rule run_fitclone:
         nodes=1,
     params:
         fitclone_input_dir=os.path.abspath(
-            "data/muts5_trees{N_trees}/sim{i}/fitclone_input"
+            "data/muts{n_mutations}_trees{N_trees}/sim{i}/fitclone_input"
         ),
         fitclone_output_dir=os.path.abspath(
-            "results/muts5_trees{N_trees}/sim{i}/fitclone_results"
+            "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitclone_results"
         ),
     shell:
         """
@@ -406,9 +365,9 @@ rule run_fitclone:
 
 rule process_fitclone_output:
     input:
-        "results/muts5_trees{N_trees}/sim{i}/fitclone_results/.done",
+        "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitclone_results/.done",
     output:
-        "results/muts5_trees{N_trees}/sim{i}/fitclone_fitness.txt",
+        "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitclone_fitness.txt",
     threads: 1
     resources:
         runtime=60,
@@ -465,11 +424,11 @@ rule process_fitclone_output:
                 # Ignore the first column (column 0)
             theta_data = theta_data.iloc[:, 1:]
 
-            # Select the last 100 rows
-            theta_last_100 = theta_data.iloc[-100:]
+            # Select the last 1000 rows
+            theta_last_1000 = theta_data.iloc[-1000:]
 
             # Compute medians
-            medians = theta_last_100.median(axis=0).values
+            medians = theta_last_1000.median(axis=0).values
 
             # Map medians to node IDs using mapping
             tree_mapping = mapping[mapping["tree_id"] == tree_id]
@@ -497,11 +456,6 @@ rule process_fitclone_output:
         output_df.to_csv(output_file, sep="\t", index=False)
         print(f"Mapped medians saved to {output_file}.")
 
-        # remove the directory
-        # import shutil
-        # shutil.rmtree(base_dir)
-
-
 
 rule run_fitree_masked_normal:
     input:
@@ -517,13 +471,6 @@ rule run_fitree_masked_normal:
         nodes=1,
         mem_mb_per_cpu=2048,
     run:
-        import pytensor
-
-        pytensor.config.compiledir = (
-            "/cluster/work/bewi/members/xgluo/pytensor_tmp"
-            + f"/muts{wildcards.n_mutations}_trees{wildcards.N_trees}_sim{wildcards.i}_chain{wildcards.chain}_masked_normal"
-        )
-
         import pymc as pm
         import numpy as np
         import fitree
@@ -596,13 +543,6 @@ rule run_fitree_normal:
         nodes=1,
         mem_mb_per_cpu=2048,
     run:
-        import pytensor
-
-        pytensor.config.compiledir = (
-            "/cluster/work/bewi/members/xgluo/pytensor_tmp"
-            + f"/muts{wildcards.n_mutations}_trees{wildcards.N_trees}_sim{wildcards.i}_chain{wildcards.chain}_normal"
-        )
-
         import pymc as pm
         import numpy as np
         import fitree
@@ -675,13 +615,6 @@ rule run_fitree_conditional_normal:
         nodes=1,
         mem_mb_per_cpu=2048,
     run:
-        import pytensor
-
-        pytensor.config.compiledir = (
-            "/cluster/work/bewi/members/xgluo/pytensor_tmp"
-            + f"/muts{wildcards.n_mutations}_trees{wildcards.N_trees}_sim{wildcards.i}_chain{wildcards.chain}_conditional_normal"
-        )
-
         import pymc as pm
         import numpy as np
         import fitree
@@ -736,119 +669,6 @@ rule run_fitree_conditional_normal:
             import shutil
 
             shutil.rmtree(pytensor.config.compiledir)
-
-
-rule run_fitree_masked_mixed:
-    input:
-        "data/muts{n_mutations}_trees{N_trees}/sim{i}/cohort.json",
-        "data/muts{n_mutations}_trees{N_trees}/sim{i}/fitness_matrix.npz",
-        "data/muts{n_mutations}_trees{N_trees}/sim{i}/vectorized_trees.npz",
-    output:
-        "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior/chain{chain}_masked_mixed.nc",
-    threads: 1
-    resources:
-        runtime=2880,
-        tasks=1,
-        nodes=1,
-        mem_mb_per_cpu=2048,
-    run:
-        import pytensor
-
-        pytensor.config.compiledir = (
-            "/cluster/work/bewi/members/xgluo/pytensor_tmp"
-            + f"/muts{wildcards.n_mutations}_trees{wildcards.N_trees}_sim{wildcards.i}_chain{wildcards.chain}_masked_mixed"
-        )
-
-        import pymc as pm
-        import numpy as np
-        import fitree
-        import arviz as az
-
-
-        n_mutations = int(wildcards.n_mutations)
-        i = int(wildcards.i)
-        chain = int(wildcards.chain)
-        seed = n_mutations * 10**6 + i * 10**3 + chain
-
-        cohort = fitree.load_cohort_from_json(input[0])
-        F_mat = np.load(input[1])["F_mat"]
-        vec_trees = fitree.load_vectorized_trees_npz(input[2])
-
-        vec_trees = fitree.update_params(vec_trees, np.diag(np.diag(F_mat)))
-        cohort.lifetime_risk = float(fitree.compute_normalizing_constant(vec_trees))
-
-        fitree_joint_likelihood = fitree.FiTreeJointLikelihood(
-            cohort,
-            augment_max_level=1,
-            conditioning=False,
-            lifetime_risk_mean=cohort.lifetime_risk,
-            lifetime_risk_std=0.001,
-        )
-
-        p0 = np.round(
-            np.sqrt(5 * (n_mutations**2 - n_mutations) / 2 * (2 * 0.95 - 1))
-        )
-        D = n_mutations * (n_mutations - 1) / 2
-        N = cohort.N_patients
-        tau0 = p0 / (D - p0) / np.sqrt(N)
-
-        model = fitree.prior_fitree_mixed(
-            cohort,
-            diag_sigma=0.1,
-            tau0=tau0,
-            local_scale=0.1,
-            s2=0.02,
-            min_occurrences=5,
-        )
-
-        with model:
-            pm.Potential(
-                "joint_likelihood",
-                fitree_joint_likelihood(
-                    model.fitness_matrix,  # pyright: ignore
-                ),  # pyright: ignore
-            )
-            trace = pm.sample(
-                draws=1000,
-                tune=1000,
-                chains=1,
-                return_inferencedata=True,
-                random_seed=seed,
-            )
-
-        trace.to_netcdf(output[0])
-
-        # remove compiledir
-        if os.path.exists(pytensor.config.compiledir):
-            import shutil
-
-            shutil.rmtree(pytensor.config.compiledir)
-
-
-rule combine_fitree_chains_maxked_mixed:
-    input:
-        lambda wildcards: expand(
-            "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior/chain{chain}_masked_mixed.nc",
-            n_mutations=wildcards.n_mutations,
-            N_trees=wildcards.N_trees,
-            i=wildcards.i,
-            chain=range(N_CHAINS),
-        ),
-    output:
-        "results/muts{n_mutations}_trees{N_trees}/sim{i}/fitree_posterior_masked_mixed.nc",
-    threads: 1
-    resources:
-        runtime=60,
-        tasks=1,
-        nodes=1,
-    run:
-        import arviz as az
-
-        trace = az.concat(
-            [az.from_netcdf(f) for f in input],
-            dim="chain",
-        )
-        trace.to_netcdf(output[0])
 
 
 rule combine_fitree_chains_masked_normal:
@@ -1004,30 +824,6 @@ rule evaluate_sc:
                     trace = az.from_netcdf(
                         f"results/muts{wildcards.n_mutations}_trees{wildcards.N_trees}/sim{i}/fitree_posterior_masked_normal.nc"
                     )
-
-                    # F_mat_posterior = trace.posterior["fitness_matrix"].values
-                    # F_mat_posterior = F_mat_posterior.reshape(-1, n_mutations, n_mutations)
-
-                    # fitree_obs_score = np.zeros(F_mat_posterior.shape[0])
-                    # fitree_rec_score = np.zeros(F_mat_posterior.shape[0])
-                    # for j, F_mat_j in enumerate(F_mat_posterior):
-                    #     vec_trees = fitree.update_params(vec_trees, F_mat_j)
-                    #     fitree_fitness = np.log(vec_trees.alpha) - np.log(vec_trees.beta)
-                    #     fitree_obs_score[j] = weighted_spearman(
-                    #         true_fitness, fitree_fitness, observed
-                    #     )
-                    #     fitree_rec_score[j] = weighted_spearman(
-                    #         true_fitness, fitree_fitness, recoverable
-                    #     )
-
-                    # fitree_obs_summary = az.summary(fitree_obs_score, stat_focus="median", hdi_prob=0.5)
-                    # fitree_obs = fitree_obs_summary["median"].values[0].astype(float)
-                    # fitree_obs_lower = fitree_obs_summary["eti_25%"].values[0].astype(float)
-                    # fitree_obs_upper = fitree_obs_summary["eti_75%"].values[0].astype(float)
-                    # fitree_rec_summary = az.summary(fitree_rec_score, stat_focus="median", hdi_prob=0.5)
-                    # fitree_rec = fitree_rec_summary["median"].values[0].astype(float)
-                    # fitree_rec_lower = fitree_rec_summary["eti_25%"].values[0].astype(float)
-                    # fitree_rec_upper = fitree_rec_summary["eti_75%"].values[0].astype(float)
 
                     fitree_posterior = trace.posterior["fitness_matrix"].values
                     inferred_F_mat = np.median(fitree_posterior, axis=(0, 1))
@@ -1281,6 +1077,10 @@ rule evaluate_fitness:
                     mutation_fitness = np.loadtxt(
                         f"results/muts{wildcards.n_mutations}_trees{wildcards.N_trees}/sim{i}/diffusion_mutation_fitness.txt"
                     )
+                    mutation_fitness += 1.0
+                    mutation_fitness[mutation_fitness < 0.0] = 1e-16
+                    mutation_fitness = np.log(mutation_fitness)
+
                     diffusion_mae_obs = np.mean(
                         np.abs(
                             true_fitness[observed][observed_unique_idx]
