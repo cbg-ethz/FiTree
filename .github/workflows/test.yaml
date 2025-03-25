@@ -43,7 +43,7 @@ jobs:
       - name: Install the module
         run: poetry install --with dev --no-interaction
       - name: Run black formatting check
-        uses: poetry run black --check src
+        run: poetry run black --check src
       - name: Run unit tests
         run: poetry run pytest
       - name: Run Ruff
