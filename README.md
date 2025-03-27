@@ -27,5 +27,5 @@ For large-scale simulation studies and real data application, we recommend looki
 
 ## Preprint
 
-The preprint of the paper is provided [here](https://www.biorxiv.org/content/10.1101/2025.01.24.634649v1). We provide the data and script to reproduce the figures in the paper [here](analysis).
+Our paper is available as a [preprint on bioRxiv](https://www.biorxiv.org/content/10.1101/2025.01.24.634649v1). All data and code necessary to reproduce the figures and analyses presented in the paper can be found in the [analysis folder](analysis).
 
