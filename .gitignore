@@ -5,10 +5,11 @@
 *.gzip
 *.tar
 *.tar.gz
-*.json
+# *.json
 *.fa
 *.fai
 *.xlsx
+*.zip
 
 # Poetry lock
 poetry.lock
@@ -158,8 +159,6 @@ dmypy.json
 
 # Raw Data
 raw_data/
-data/
-analysis/
 
 # Plots
 .svg
@@ -184,5 +183,7 @@ src/fitree/_mtbp
 src/fitree/_inference/_numpyro
 workflows/AML_results
 workflows/AML_data
+workflows/data
+workflows/max_sum
 manuscript/
-analysis/
+source_data/
