@@ -28,6 +28,5 @@ These workflows implement the complete pipeline for both simulation studies and 
 
 ## Data Availability
 
-All simulated data and raw results used in this analysis are available on Zenodo:
-[https://doi.org/10.1101/2025.01.24.634649](https://doi.org/10.1101/2025.01.24.634649)
+All simulated data and raw results used in this analysis are available on [Zenodo](https://zenodo.org/records/15096570).
 
