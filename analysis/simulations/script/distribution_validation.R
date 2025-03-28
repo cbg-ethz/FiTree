@@ -205,17 +205,10 @@ g <- ggplot(df_setting %>% filter(setting != "E")) +
     )
 
 
-ggsave(
-    plot = g,
-    filename = "/Users/luox/Documents/Projects/FiTree/figures/parameter_settings.pdf",
-    width = 10,
-    height = 4
-)
-
 ###################### plot distributions
 
-df_all <- read.csv("demo/simulations/data/subclone_sizes.csv")
-df_sampling_all <- read.csv("demo/simulations/data/sampling_times.csv")
+df_all <- read.csv("analysis/simulations/data/subclone_sizes.csv")
+df_sampling_all <- read.csv("analysis/simulations/data/sampling_times.csv")
 
 t <- 20
 g1 <- ggplot(data = df_all) +
@@ -1451,31 +1444,10 @@ g4 <- ggplot(na.omit(df_sampling_all)) +
         linetype = guide_legend(nrow = 1)
     )
 
-G <- ggarrange(g1, g2, g3, g4, ncol = 2, nrow = 2, common.legend = TRUE, legend = "bottom")
-
-G <- ggarrange(
-    g1, 
-    g2 + theme(axis.title.y = element_blank()),
-    g3 + theme(axis.title.y = element_blank()),
-    g4 + theme(axis.title.y = element_blank()),
-    ncol = 4, nrow = 1, common.legend = TRUE, legend = "bottom")
-
 G <- ggarrange(
     g1 + labs(y = "CDF"),
     g2 + labs(y = "CDF"),
     g3 + labs(y = "CDF"),
     g4 + labs(y = "CDF"),
     ncol = 2, nrow = 2, common.legend = TRUE, legend = "bottom"
-)
-
-# G <- annotate_figure(
-#   G,
-#   top = text_grob("Subclonal population and sampling time distributions", color = "black", size = 16)
-# )
-
-ggsave(
-    filename = "/Users/luox/Documents/Projects/FiTree/figures/simulation_I_aggregated.pdf",
-    plot = G,
-    width = 8,
-    height = 6
 )
